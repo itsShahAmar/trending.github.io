@@ -176,6 +176,7 @@ def create_video(
     try:
         from moviepy.editor import (  # type: ignore[import]
             AudioFileClip,
+            CompositeAudioClip,
             CompositeVideoClip,
             ColorClip,
             ImageClip,
@@ -249,10 +250,27 @@ def create_video(
             base = base.subclip(0, target_duration)
 
         # ------------------------------------------------------------------
-        # 3. Overlay TTS audio
+        # 3. Overlay TTS audio (mixed with optional background music)
         # ------------------------------------------------------------------
-        audio = AudioFileClip(str(audio_path))
-        base = base.set_audio(audio)
+        tts_audio = AudioFileClip(str(audio_path))
+
+        # Look for a background music file at the configured path
+        bg_music_path = Path(config.BG_MUSIC_PATH)
+        if bg_music_path.exists() and config.BG_MUSIC_VOLUME > 0:
+            try:
+                bg_audio = (
+                    AudioFileClip(str(bg_music_path))
+                    .volumex(config.BG_MUSIC_VOLUME)
+                    .set_duration(target_duration)
+                )
+                mixed_audio = CompositeAudioClip([bg_audio, tts_audio])
+                base = base.set_audio(mixed_audio)
+                logger.info("Background music mixed in at volume %.2f", config.BG_MUSIC_VOLUME)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Could not mix background music: %s — using TTS only", exc)
+                base = base.set_audio(tts_audio)
+        else:
+            base = base.set_audio(tts_audio)
 
         # ------------------------------------------------------------------
         # 4. Captions

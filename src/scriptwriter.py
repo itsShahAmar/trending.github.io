@@ -69,7 +69,7 @@ def _call_openai(topic: str, retries: int = 3, backoff: float = 2.0) -> dict[str
     for attempt in range(1, retries + 1):
         try:
             response = client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=config.OPENAI_MODEL,
                 messages=[
                     {"role": "system", "content": _SYSTEM_PROMPT},
                     {"role": "user", "content": _USER_PROMPT_TEMPLATE.format(topic=topic)},

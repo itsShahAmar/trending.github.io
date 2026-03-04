@@ -5,6 +5,10 @@ on:
     - cron: '0 */6 * * *'  # Run every 6 hours
   workflow_dispatch:  # Allow manual trigger
 
+concurrency:
+  group: yt-automation
+  cancel-in-progress: false  # Let the running job finish; queue at most one
+
 jobs:
   create-and-upload:
     runs-on: ubuntu-latest

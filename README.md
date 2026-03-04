@@ -124,8 +124,11 @@ Edit `config.py` to change:
 
 | Setting | Default | Description |
 |---------|---------|-------------|
+| `OPENAI_MODEL` | `"gpt-4o-mini"` | OpenAI chat model used for script generation |
 | `VIDEO_FPS` | `30` | Output frame rate |
 | `FONT_SIZE` | `60` | Caption font size (px) |
+| `BG_MUSIC_VOLUME` | `0.08` | Background music volume (0.0 = off). Place an MP3 at the path set by `BG_MUSIC_PATH` to enable. |
+| `BG_MUSIC_PATH` | `"assets/bg_music.mp3"` | Path to the background music MP3 file (relative to the repo root). |
 | `TTS_VOICE` | `"alloy"` | OpenAI TTS voice (`alloy`, `echo`, `fable`, `onyx`, `nova`, `shimmer`) |
 | `YOUTUBE_CATEGORY_ID` | `"22"` | YouTube category (22 = People & Blogs) |
 | `PRIVACY_STATUS` | `"public"` | Upload privacy (`public`, `unlisted`, `private`) |
