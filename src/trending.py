@@ -14,6 +14,11 @@ import requests
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+_MIN_TOPICS = 10  # Minimum number of topics to maintain in the combined list
+
+# ---------------------------------------------------------------------------
 # Fallback topics used when all external sources fail
 # ---------------------------------------------------------------------------
 FALLBACK_TOPICS: list[str] = [
@@ -94,13 +99,13 @@ def get_trending_topics() -> list[str]:
             seen.add(normalised.lower())
             combined.append(normalised)
 
-    if len(combined) < 10:
-        logger.info("Fewer than 10 topics found (%d); padding with fallbacks", len(combined))
+    if len(combined) < _MIN_TOPICS:
+        logger.info("Fewer than %d topics found (%d); padding with fallbacks", _MIN_TOPICS, len(combined))
         for fallback in FALLBACK_TOPICS:
             if fallback.lower() not in seen:
                 seen.add(fallback.lower())
                 combined.append(fallback)
-            if len(combined) >= 10:
+            if len(combined) >= _MIN_TOPICS:
                 break
 
     logger.info("Total unique topics available: %d", len(combined))
@@ -110,8 +115,9 @@ def get_trending_topics() -> list[str]:
 def get_best_topic() -> str:
     """Pick the most viral/interesting topic using a cross-source scoring heuristic.
 
-    Topics that appear in both Google Trends *and* Reddit are scored higher.
-    Within each source, earlier results (higher rank) get more points.
+    Fetches from each source once, then scores topics so that those appearing
+    in both Google Trends *and* Reddit rank higher.  Within each source,
+    earlier results (higher rank) get more points.
     """
     google_topics = _fetch_google_trends()
     reddit_topics = _fetch_reddit_trending()
@@ -142,4 +148,17 @@ def get_best_topic() -> str:
     best_key = max(scores, key=lambda k: scores[k])
     best_topic = original.get(best_key, FALLBACK_TOPICS[0])
     logger.info("Best topic selected: '%s' (score=%.1f)", best_topic, scores[best_key])
+
+    # Pad the combined topic list with fallbacks so get_trending_topics() stays
+    # consistent without making a second round of network calls.
+    seen: set[str] = {t.strip().lower() for t in google_topics + reddit_topics}
+    combined = list(original.values())
+    for fallback in FALLBACK_TOPICS:
+        if fallback.lower() not in seen:
+            seen.add(fallback.lower())
+            combined.append(fallback)
+        if len(combined) >= _MIN_TOPICS:
+                break
+    logger.info("Total unique topics available: %d", len(combined))
+
     return best_topic

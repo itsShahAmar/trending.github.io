@@ -16,6 +16,10 @@ VIDEO_DURATION_TARGET: int = 45  # seconds target
 FONT_SIZE: int = 60
 FONT_COLOR: str = "white"
 BG_MUSIC_VOLUME: float = 0.08
+BG_MUSIC_PATH: str = "assets/bg_music.mp3"  # Relative path to background music file (leave empty to disable)
+
+# OpenAI model settings
+OPENAI_MODEL: str = "gpt-4o-mini"  # Chat completions model for script generation
 
 # TTS settings
 TTS_VOICE: str = "alloy"  # OpenAI TTS voice
