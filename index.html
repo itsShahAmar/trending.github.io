@@ -1146,13 +1146,13 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
       const raw = urlInput.value.trim();
 
       if (!raw) {
-        showToast('⚠️ Please enter a YouTube channel URL.', 'warning');
+        showToast('⚠️ Please enter a YouTube channel URL.');
         return;
       }
 
       const parsed = parseChannelUrl(raw);
       if (!parsed) {
-        showToast('❌ Invalid URL. Use youtube.com/channel/UC… or @handle', 'error');
+        showToast('❌ Invalid URL. Use youtube.com/channel/UC… or @handle');
         return;
       }
 
@@ -1203,7 +1203,7 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
       const clientId = document.getElementById('client-id').value.trim();
 
       if (!clientId) {
-        showToast('⚠️ Enter your OAuth2 Client ID first.', 'warning');
+        showToast('⚠️ Enter your OAuth2 Client ID first.');
         return;
       }
 
@@ -1289,7 +1289,7 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
           window.getSelection().removeAllRanges();
           showToast('📋 Copied to clipboard!');
         } catch (_) {
-          showToast('❌ Copy failed — please select manually.', 'error');
+          showToast('❌ Copy failed — please select manually.');
         }
       });
     }

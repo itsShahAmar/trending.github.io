@@ -183,7 +183,7 @@ def _topic_to_tags(topic: str) -> list[str]:
     topic_tags = [w for w in words if len(w) > 2]
 
     if len(words) >= 2:
-        topic_tags.append("".join(words[:3]))
+        topic_tags.append("".join(words[:2]))
 
     all_tags = list(dict.fromkeys(topic_tags + _BASE_TAGS))
     return all_tags[:20]
