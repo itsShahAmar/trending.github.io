@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>YT Automation — YouTube Shorts Automation Setup</title>
+  <style>
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a2e;
+      --surface2: #16213e;
+      --accent: #ff0050;
+      --accent-hover: #e6004a;
+      --text: #e0e0e0;
+      --text-muted: #888;
+      --success: #00c853;
+      --border: #2a2a4a;
+      --input-bg: #0d1117;
+      --code-bg: #161b22;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem 1.5rem;
+    }
+
+    /* Header */
+    header {
+      text-align: center;
+      padding: 3rem 0 2rem;
+    }
+    header h1 {
+      font-size: 2.2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+    header h1 span { color: var(--accent); }
+    header p {
+      color: var(--text-muted);
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-bottom: 1.5rem;
+    }
+    .card h2 {
+      font-size: 1.3rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .card h2 .step {
+      background: var(--accent);
+      color: #fff;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.85rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    /* Forms */
+    label {
+      display: block;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-bottom: 0.4rem;
+    }
+    input[type="text"], input[type="url"] {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--input-bg);
+      color: var(--text);
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input:focus {
+      border-color: var(--accent);
+    }
+    .input-group {
+      margin-bottom: 1rem;
+    }
+    .input-hint {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 0.3rem;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.1s;
+      text-decoration: none;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn:active { transform: translateY(0); }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-primary:disabled {
+      background: #444;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-outline:hover { background: var(--surface2); }
+
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+    }
+
+    /* Status badge */
+    .status {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .status-pending {
+      background: rgba(255,165,0,0.15);
+      color: #ffa500;
+    }
+    .status-done {
+      background: rgba(0,200,83,0.15);
+      color: var(--success);
+    }
+
+    /* Channel info */
+    .channel-info {
+      display: none;
+      margin-top: 1rem;
+      padding: 1rem;
+      background: var(--surface2);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .channel-info.visible { display: block; }
+    .channel-info p {
+      font-size: 0.95rem;
+      margin-bottom: 0.3rem;
+    }
+    .channel-info .channel-id {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: var(--accent);
+    }
+
+    /* Token display */
+    .token-area {
+      display: none;
+      margin-top: 1rem;
+    }
+    .token-area.visible { display: block; }
+    .token-box {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      position: relative;
+    }
+    .token-box label {
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.5rem;
+    }
+    .token-box pre {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 0.8rem;
+      color: var(--success);
+      white-space: pre-wrap;
+      word-break: break-all;
+      margin-top: 0.4rem;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .copy-btn {
+      position: absolute;
+      top: 0.75rem;
+      right: 0.75rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.3rem 0.6rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      cursor: pointer;
+    }
+    .copy-btn:hover { background: var(--surface2); }
+
+    /* Steps guide */
+    .steps-list {
+      list-style: none;
+      counter-reset: steps;
+    }
+    .steps-list li {
+      padding: 0.6rem 0;
+      padding-left: 2rem;
+      position: relative;
+      border-left: 2px solid var(--border);
+      margin-left: 0.5rem;
+    }
+    .steps-list li::before {
+      counter-increment: steps;
+      content: counter(steps);
+      position: absolute;
+      left: -0.75rem;
+      top: 0.6rem;
+      width: 24px;
+      height: 24px;
+      background: var(--surface2);
+      border: 2px solid var(--border);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: var(--text-muted);
+    }
+    .steps-list li.done::before {
+      background: var(--success);
+      border-color: var(--success);
+      content: "✓";
+      color: #fff;
+    }
+
+    /* Code blocks */
+    code {
+      background: var(--code-bg);
+      padding: 0.15rem 0.4rem;
+      border-radius: 4px;
+      font-size: 0.85em;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+    }
+
+    /* Alert/notice */
+    .notice {
+      background: rgba(255,165,0,0.1);
+      border: 1px solid rgba(255,165,0,0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem 0;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* Hidden utility */
+    .hidden { display: none !important; }
+
+    /* Responsive */
+    @media (max-width: 600px) {
+      .container { padding: 1rem; }
+      header h1 { font-size: 1.6rem; }
+      .card { padding: 1.25rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <header>
+      <h1>🎬 <span>YT</span> Automation</h1>
+      <p>Fully automated YouTube Shorts creation &amp; upload. Paste your channel link, authorize, and let the pipeline run 24/7.</p>
+    </header>
+
+    <!-- Step 1: Channel Link -->
+    <div class="card" id="step1-card">
+      <h2><span class="step">1</span> Paste Your YouTube Channel Link</h2>
+      <div class="input-group">
+        <label for="channel-url">YouTube Channel URL</label>
+        <input
+          type="url"
+          id="channel-url"
+          placeholder="https://www.youtube.com/channel/UCxxxxxx or @handle"
+          autocomplete="off"
+        >
+        <p class="input-hint">
+          Accepts URLs like <code>youtube.com/channel/UC...</code>,
+          <code>youtube.com/@handle</code>, or
+          <code>youtube.com/c/ChannelName</code>
+        </p>
+      </div>
+      <button class="btn btn-primary" id="validate-btn" onclick="validateChannel()">
+        Validate Channel
+      </button>
+      <div class="channel-info" id="channel-info">
+        <p>✅ <strong>Channel recognized</strong></p>
+        <p>Channel identifier: <span class="channel-id" id="channel-id-display"></span></p>
+      </div>
+    </div>
+
+    <!-- Step 2: OAuth Authorization -->
+    <div class="card" id="step2-card">
+      <h2><span class="step">2</span> Authorize YouTube Access</h2>
+      <p style="margin-bottom:1rem; color: var(--text-muted);">
+        Connect your Google account to allow the automation to upload Shorts to your channel.
+      </p>
+
+      <!-- Client ID input (needed for OAuth) -->
+      <div class="input-group">
+        <label for="client-id">Google OAuth2 Client ID</label>
+        <input
+          type="text"
+          id="client-id"
+          placeholder="xxxx.apps.googleusercontent.com"
+          autocomplete="off"
+        >
+        <p class="input-hint">
+          From your <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:var(--accent)">Google Cloud Console</a> → OAuth 2.0 Client IDs.
+          Create credentials of type <strong>Web application</strong> and add this page's URL as an authorized redirect URI.
+        </p>
+      </div>
+
+      <button class="btn btn-primary" id="authorize-btn" onclick="startAuth()">
+        🔐 Authorize with Google
+      </button>
+
+      <div class="token-area" id="token-area">
+        <div class="token-box">
+          <label>Authorization Code</label>
+          <button class="copy-btn" onclick="copyText('auth-code-display')">Copy</button>
+          <pre id="auth-code-display"></pre>
+        </div>
+        <p style="font-size:0.9rem; color:var(--text-muted); margin-top:0.5rem;">
+          ✅ Use this code with the token exchange command in Step 3 below.
+        </p>
+      </div>
+    </div>
+
+    <!-- Step 3: Setup Guide -->
+    <div class="card" id="step3-card">
+      <h2><span class="step">3</span> Complete Setup</h2>
+      <p style="margin-bottom:1rem; color: var(--text-muted);">
+        After authorizing, exchange the code for tokens and add them as GitHub Secrets.
+      </p>
+
+      <ol class="steps-list" id="setup-steps">
+        <li>
+          <strong>Create a Google Cloud project</strong> — Enable the
+          <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener" style="color:var(--accent)">YouTube Data API v3</a>.
+        </li>
+        <li>
+          <strong>Create OAuth 2.0 credentials</strong> — In
+          <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener" style="color:var(--accent)">Credentials</a>,
+          create a <em>Web application</em> client. Add this site's URL as a redirect URI.
+        </li>
+        <li>
+          <strong>Authorize above</strong> — Paste your Client ID in Step 2 and click Authorize.
+        </li>
+        <li>
+          <strong>Exchange the code for tokens</strong> — Run this locally after completing Steps 1–3.
+          You can use either the one-step Python helper (recommended) or exchange the code from Step 2 manually:<br>
+          <div class="token-box" style="margin-top:0.5rem; position:relative;">
+            <label>Option A — One-step Python helper (easiest)</label>
+            <button class="copy-btn" onclick="copyText('exchange-cmd')">Copy</button>
+            <pre id="exchange-cmd">pip install google-auth-oauthlib
+python - &lt;&lt;'EOF'
+from google_auth_oauthlib.flow import InstalledAppFlow
+flow = InstalledAppFlow.from_client_secrets_file(
+    "client_secret.json",
+    scopes=["https://www.googleapis.com/auth/youtube.upload"]
+)
+creds = flow.run_local_server(port=0)
+import json
+print(json.dumps({
+    "access_token": creds.token,
+    "refresh_token": creds.refresh_token,
+    "token_uri": creds.token_uri,
+}))
+EOF</pre>
+          </div>
+          <div class="token-box" style="margin-top:0.5rem; position:relative;">
+            <label>Option B — Exchange the authorization code from Step 2</label>
+            <button class="copy-btn" onclick="copyText('exchange-cmd-curl')">Copy</button>
+            <pre id="exchange-cmd-curl">curl -s -X POST https://oauth2.googleapis.com/token \
+  -d code=YOUR_AUTH_CODE \
+  -d client_id=YOUR_CLIENT_ID \
+  -d client_secret=YOUR_CLIENT_SECRET \
+  -d redirect_uri=YOUR_REDIRECT_URI \
+  -d grant_type=authorization_code</pre>
+          </div>
+        </li>
+        <li>
+          <strong>Get API keys</strong> — Get an
+          <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" style="color:var(--accent)">OpenAI API key</a>
+          and a free
+          <a href="https://www.pexels.com/api/" target="_blank" rel="noopener" style="color:var(--accent)">Pexels API key</a>.
+        </li>
+        <li>
+          <strong>Add GitHub Secrets</strong> — In your fork, go to
+          <em>Settings → Secrets and variables → Actions</em> and add:
+          <div class="token-box" style="margin-top:0.5rem">
+            <pre>OPENAI_API_KEY         → Your OpenAI API key
+YOUTUBE_CLIENT_SECRET  → Full OAuth2 client secret JSON
+YOUTUBE_TOKEN          → JSON with access_token &amp; refresh_token
+PEXELS_API_KEY         → Your Pexels API key</pre>
+          </div>
+        </li>
+        <li>
+          <strong>Enable GitHub Actions</strong> — Go to the <em>Actions</em> tab and enable workflows.
+          The pipeline runs every 6 hours automatically.
+        </li>
+      </ol>
+    </div>
+
+    <!-- Status Dashboard -->
+    <div class="card">
+      <h2>📊 Automation Status</h2>
+      <div style="display:flex; flex-wrap:wrap; gap:0.75rem; margin-bottom:1rem;">
+        <span class="status" id="status-channel">
+          <span id="status-channel-icon">⏳</span> Channel: <span id="status-channel-text">Not set</span>
+        </span>
+        <span class="status" id="status-auth">
+          <span id="status-auth-icon">⏳</span> Auth: <span id="status-auth-text">Pending</span>
+        </span>
+        <span class="status" id="status-secrets">
+          <span id="status-secrets-icon">⏳</span> Secrets: <span id="status-secrets-text">Pending</span>
+        </span>
+      </div>
+
+      <div class="notice" id="setup-notice">
+        Complete the steps above to activate your automation pipeline.
+        Once all secrets are configured, the GitHub Actions workflow will create and upload YouTube Shorts every 6 hours.
+      </div>
+
+      <div class="hidden" id="all-done-notice" style="margin-top:1rem; padding:1rem; background:rgba(0,200,83,0.1); border:1px solid rgba(0,200,83,0.3); border-radius:8px;">
+        <p><strong>🎉 Setup complete!</strong></p>
+        <p style="color:var(--text-muted); font-size:0.9rem; margin-top:0.3rem;">
+          Your automation is ready. Go to the
+          <a href="#" id="actions-link" target="_blank" rel="noopener" style="color:var(--accent)">Actions tab</a>
+          to trigger the first run manually, or wait for the next scheduled run.
+        </p>
+      </div>
+    </div>
+
+    <!-- How it works -->
+    <div class="card">
+      <h2>⚙️ How It Works</h2>
+      <p style="color:var(--text-muted); margin-bottom:1rem;">Every 6 hours, the pipeline automatically:</p>
+      <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:1rem;">
+        <div style="padding:1rem; background:var(--surface2); border-radius:8px; text-align:center;">
+          <div style="font-size:1.5rem; margin-bottom:0.3rem;">🔍</div>
+          <strong>Finds Trends</strong>
+          <p style="font-size:0.85rem; color:var(--text-muted);">Google Trends &amp; Reddit</p>
+        </div>
+        <div style="padding:1rem; background:var(--surface2); border-radius:8px; text-align:center;">
+          <div style="font-size:1.5rem; margin-bottom:0.3rem;">✍️</div>
+          <strong>Writes Script</strong>
+          <p style="font-size:0.85rem; color:var(--text-muted);">AI-powered narration</p>
+        </div>
+        <div style="padding:1rem; background:var(--surface2); border-radius:8px; text-align:center;">
+          <div style="font-size:1.5rem; margin-bottom:0.3rem;">🎬</div>
+          <strong>Creates Video</strong>
+          <p style="font-size:0.85rem; color:var(--text-muted);">Stock footage &amp; captions</p>
+        </div>
+        <div style="padding:1rem; background:var(--surface2); border-radius:8px; text-align:center;">
+          <div style="font-size:1.5rem; margin-bottom:0.3rem;">🚀</div>
+          <strong>Uploads</strong>
+          <p style="font-size:0.85rem; color:var(--text-muted);">Direct to your channel</p>
+        </div>
+      </div>
+    </div>
+
+    <footer>
+      <p>
+        Built with ❤️ — <a href="https://github.com/ShahAmar-Official/yt-automation.github.io">View on GitHub</a>
+        · MIT License
+      </p>
+    </footer>
+
+  </div>
+
+  <script>
+    // ── State ──────────────────────────────────────────────────────
+    const state = {
+      channelId: null,
+      authorized: false,
+    };
+
+    // ── Restore state from localStorage ───────────────────────────
+    (function restoreState() {
+      try {
+        const saved = localStorage.getItem('ytAutoState');
+        if (saved) {
+          const data = JSON.parse(saved);
+          if (data.channelId) {
+            state.channelId = data.channelId;
+            document.getElementById('channel-url').value = data.channelUrl || '';
+            showChannelInfo(data.channelId);
+          }
+          if (data.authorized) {
+            state.authorized = true;
+            updateStatus('auth', 'done', 'Authorized');
+          }
+        }
+      } catch (_) { /* ignore */ }
+
+      // Check for OAuth callback code in URL
+      handleOAuthCallback();
+    })();
+
+    // ── Channel validation ────────────────────────────────────────
+    function validateChannel() {
+      const urlInput = document.getElementById('channel-url');
+      const raw = urlInput.value.trim();
+
+      if (!raw) {
+        showAlert('Please enter a YouTube channel URL.');
+        return;
+      }
+
+      const parsed = parseChannelUrl(raw);
+      if (!parsed) {
+        showAlert('Invalid YouTube channel URL. Please use a URL like:\nhttps://www.youtube.com/channel/UCxxxxxx\nhttps://www.youtube.com/@handle');
+        return;
+      }
+
+      state.channelId = parsed;
+      showChannelInfo(parsed);
+      saveState({ channelUrl: raw });
+    }
+
+    function parseChannelUrl(url) {
+      // Normalize: add https if missing
+      let u = url;
+      if (!u.startsWith('http')) {
+        u = 'https://' + u;
+      }
+
+      try {
+        const parsed = new URL(u);
+        const host = parsed.hostname.replace('www.', '');
+        if (host !== 'youtube.com' && host !== 'm.youtube.com') {
+          return null;
+        }
+        const path = parsed.pathname;
+
+        // /channel/UCxxxxx
+        const channelMatch = path.match(/^\/channel\/(UC[a-zA-Z0-9_-]+)/);
+        if (channelMatch) return channelMatch[1];
+
+        // /@handle
+        const handleMatch = path.match(/^\/@([a-zA-Z0-9._-]+)/);
+        if (handleMatch) return '@' + handleMatch[1];
+
+        // /c/ChannelName or /user/Username
+        const customMatch = path.match(/^\/(c|user)\/([a-zA-Z0-9._-]+)/);
+        if (customMatch) return customMatch[2];
+
+        return null;
+      } catch (_) {
+        return null;
+      }
+    }
+
+    function showChannelInfo(id) {
+      const info = document.getElementById('channel-info');
+      document.getElementById('channel-id-display').textContent = id;
+      info.classList.add('visible');
+      updateStatus('channel', 'done', id);
+    }
+
+    // ── OAuth2 Authorization ──────────────────────────────────────
+    function startAuth() {
+      const clientId = document.getElementById('client-id').value.trim();
+
+      if (!clientId) {
+        showAlert('Please enter your Google OAuth2 Client ID first.\n\nYou can create one at:\nhttps://console.cloud.google.com/apis/credentials');
+        return;
+      }
+
+      // Store client ID for later
+      saveState({ clientId: clientId });
+
+      // Build Google OAuth2 authorization URL
+      const redirectUri = window.location.origin + window.location.pathname;
+      const scope = 'https://www.googleapis.com/auth/youtube.upload';
+
+      const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        scope: scope,
+        access_type: 'offline',
+        prompt: 'consent',
+        state: 'yt-automation'
+      });
+
+      const authUrl = 'https://accounts.google.com/o/oauth2/v2/auth?' + params.toString();
+      window.location.href = authUrl;
+    }
+
+    function handleOAuthCallback() {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      const oauthState = params.get('state');
+
+      if (code && oauthState === 'yt-automation') {
+        // Show the authorization code
+        document.getElementById('auth-code-display').textContent = code;
+        document.getElementById('token-area').classList.add('visible');
+
+        state.authorized = true;
+        updateStatus('auth', 'done', 'Authorized');
+        saveState({ authorized: true });
+
+        // Clean up URL (remove code from address bar)
+        const cleanUrl = window.location.origin + window.location.pathname;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    }
+
+    // ── Status updates ────────────────────────────────────────────
+    function updateStatus(key, status, text) {
+      const el = document.getElementById('status-' + key);
+      const icon = document.getElementById('status-' + key + '-icon');
+      const textEl = document.getElementById('status-' + key + '-text');
+
+      el.className = 'status ' + (status === 'done' ? 'status-done' : 'status-pending');
+      icon.textContent = status === 'done' ? '✅' : '⏳';
+      textEl.textContent = text;
+    }
+
+    // ── Persistence ───────────────────────────────────────────────
+    function saveState(extra) {
+      try {
+        const current = JSON.parse(localStorage.getItem('ytAutoState') || '{}');
+        const merged = { ...current, ...extra, channelId: state.channelId, authorized: state.authorized };
+        localStorage.setItem('ytAutoState', JSON.stringify(merged));
+      } catch (_) { /* ignore */ }
+    }
+
+    // ── Clipboard ─────────────────────────────────────────────────
+    function copyText(elementId) {
+      const el = document.getElementById(elementId);
+      const text = el.textContent;
+      navigator.clipboard.writeText(text).then(function() {
+        const btn = el.closest('.token-box').querySelector('.copy-btn');
+        const original = btn.textContent;
+        btn.textContent = 'Copied!';
+        setTimeout(function() { btn.textContent = original; }, 1500);
+      }).catch(function() {
+        // Fallback for older browsers
+        try {
+          const range = document.createRange();
+          range.selectNode(el);
+          window.getSelection().removeAllRanges();
+          window.getSelection().addRange(range);
+          document.execCommand('copy');
+          window.getSelection().removeAllRanges();
+        } catch (_) {
+          showAlert('Unable to copy to clipboard. Please select and copy the text manually.');
+        }
+      });
+    }
+
+    // ── Alert ─────────────────────────────────────────────────────
+    function showAlert(msg) {
+      alert(msg);
+    }
+  </script>
+</body>
+</html>
