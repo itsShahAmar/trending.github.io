@@ -30,10 +30,10 @@ if not hasattr(Image, "ANTIALIAS"):
     Image.ANTIALIAS = Image.Resampling.LANCZOS
 
 # Pillow 10 moved transpose constants; ensure top-level aliases exist.
-for _attr in ("FLIP_LEFT_RIGHT", "FLIP_TOP_BOTTOM", "ROTATE_90",
-              "ROTATE_180", "ROTATE_270", "TRANSPOSE", "TRANSVERSE"):
-    if not hasattr(Image, _attr) and hasattr(Image.Transpose, _attr):
-        setattr(Image, _attr, getattr(Image.Transpose, _attr))
+for _constant_name in ("FLIP_LEFT_RIGHT", "FLIP_TOP_BOTTOM", "ROTATE_90",
+                        "ROTATE_180", "ROTATE_270", "TRANSPOSE", "TRANSVERSE"):
+    if not hasattr(Image, _constant_name) and hasattr(Image.Transpose, _constant_name):
+        setattr(Image, _constant_name, getattr(Image.Transpose, _constant_name))
 
 import config
 
@@ -129,9 +129,9 @@ def _ken_burns_effect(clip: Any, w: int, h: int, zoom_ratio: float = 0.08) -> An
     """
     duration = clip.duration
 
-    def _zoom_frame(get_frame: Any, t: float) -> Any:
+    def _zoom_frame(clip_get_frame: Any, t: float) -> Any:
         import numpy as np
-        frame = get_frame(t)
+        frame = clip_get_frame(t)
         progress = t / duration if duration > 0 else 0
         current_zoom = 1.0 + zoom_ratio * progress
         fh, fw = frame.shape[:2]
@@ -206,13 +206,13 @@ def _build_caption_clips(script_text: str, total_duration: float, video_w: int, 
     shadow_offset = getattr(config, "SUBTITLE_SHADOW_OFFSET", 4)
     crossfade = min(0.15, duration_per_chunk * 0.2)
 
-    # Cycle through a palette for variety
-    _palette = ["white", highlight, "white", secondary]
+    # Cycle through a colour palette for visual variety
+    color_palette = ["white", highlight, "white", secondary]
 
     for i, chunk in enumerate(chunks):
         start = i * duration_per_chunk
         dur = duration_per_chunk
-        color = _palette[i % len(_palette)]
+        color = color_palette[i % len(color_palette)]
         text_upper = chunk.upper()
         try:
             # Main text clip

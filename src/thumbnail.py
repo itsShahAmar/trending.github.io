@@ -85,13 +85,17 @@ def _draw_text_with_stroke(draw: ImageDraw.ImageDraw, xy: tuple[int, int], text:
                             fill: tuple[int, ...], stroke_fill: tuple[int, ...],
                             stroke_width: int) -> None:
     """Draw text with a thick outline/stroke for readability."""
-    x, y = xy
-    # Draw stroke by rendering text at offsets
-    for dx in range(-stroke_width, stroke_width + 1):
-        for dy in range(-stroke_width, stroke_width + 1):
-            if dx * dx + dy * dy <= stroke_width * stroke_width:
-                draw.text((x + dx, y + dy), text, font=font, fill=stroke_fill)
-    draw.text(xy, text, font=font, fill=fill)
+    try:
+        draw.text(xy, text, font=font, fill=fill,
+                  stroke_width=stroke_width, stroke_fill=stroke_fill)
+    except TypeError:
+        # Fallback for older Pillow without stroke support
+        x, y = xy
+        for dx in range(-stroke_width, stroke_width + 1):
+            for dy in range(-stroke_width, stroke_width + 1):
+                if dx * dx + dy * dy <= stroke_width * stroke_width:
+                    draw.text((x + dx, y + dy), text, font=font, fill=stroke_fill)
+        draw.text(xy, text, font=font, fill=fill)
 
 
 def _topic_emoji(topic: str) -> str:
@@ -136,15 +140,15 @@ def create_thumbnail(title: str, topic: str) -> Path:
         fill=_ACCENT_COLOR,
     )
 
-    # Subtle glow circle behind text area for depth
-    glow = Image.new("RGBA", (THUMB_W, THUMB_H), (0, 0, 0, 0))
+    # Subtle glow behind text area for depth
+    glow = Image.new("RGB", (THUMB_W, THUMB_H), (0, 0, 0))
     glow_draw = ImageDraw.Draw(glow)
     glow_draw.ellipse(
         [(THUMB_W // 2 - 400, 60), (THUMB_W // 2 + 400, THUMB_H - 120)],
-        fill=(255, 255, 255, 25),
+        fill=(25, 25, 25),
     )
     glow = glow.filter(ImageFilter.GaussianBlur(radius=60))
-    img.paste(Image.alpha_composite(img.convert("RGBA"), glow).convert("RGB"))
+    img = Image.blend(img, glow, alpha=0.3)
     draw = ImageDraw.Draw(img)
 
     # Emoji (large, top-left region)

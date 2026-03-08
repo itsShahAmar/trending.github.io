@@ -39,6 +39,8 @@ AUDIO_BITRATE: str = "256k"
 VIDEO_TRANSITION_DURATION: float = 0.4
 
 # TTS settings (edge-tts — free neural voice, no API key needed)
+# AndrewNeural is a clear, natural male voice well-suited for narration.
+# Browse available voices: https://speech.microsoft.com/portal/voicegallery
 TTS_VOICE: str = "en-US-AndrewNeural"
 TTS_RATE: str = "+5%"
 TTS_LANGUAGE: str = "en"  # Fallback for gTTS
