@@ -925,7 +925,7 @@
     <div id="setup" class="fade-in">
       <div class="section-header">
         <h2>🛠️ Quick Setup</h2>
-        <p>Three steps to fully automated Shorts</p>
+        <p>Four steps to fully automated Shorts</p>
       </div>
 
       <!-- Step 1: Channel Link -->
@@ -988,33 +988,56 @@
             <pre id="auth-code-display"></pre>
           </div>
           <p style="font-size:0.85rem; color:var(--text-muted); margin-top:0.5rem;">
-            ✅ Use this code with the token exchange command in Step 3.
+            ✅ Code captured! Enter your Client Secret below to exchange for tokens.
           </p>
         </div>
       </div>
 
-      <!-- Step 3: Complete Setup -->
+      <!-- Step 3: Token Exchange -->
       <div class="card" id="step3-card">
-        <h2><span class="step">3</span> Configure &amp; Launch</h2>
-        <p class="card-description">Exchange tokens and add GitHub Secrets to activate the pipeline.</p>
+        <h2><span class="step">3</span> Exchange Tokens</h2>
+        <p class="card-description">Exchange your authorization code for access &amp; refresh tokens — right in the browser.</p>
 
-        <ol class="steps-list" id="setup-steps">
-          <li>
-            <strong>Create a Google Cloud project</strong> — Enable the
-            <a href="https://console.cloud.google.com/apis/library/youtube.googleapis.com" target="_blank" rel="noopener">YouTube Data API v3</a>.
-          </li>
-          <li>
-            <strong>Create OAuth 2.0 credentials</strong> — In
-            <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Credentials</a>,
-            create a <em>Web application</em> client. Add this site's URL as a redirect URI.
-          </li>
-          <li>
-            <strong>Authorize above</strong> — Paste your Client ID in Step 2 and click Authorize.
-          </li>
-          <li>
-            <strong>Exchange the code for tokens</strong> — Use the Python helper or curl command below:
-            <div class="token-box" style="margin-top:0.5rem; position:relative;">
-              <label>Option A — Python helper (recommended)</label>
+        <div class="input-group">
+          <label for="client-secret">Google OAuth2 Client Secret</label>
+          <input
+            type="password"
+            id="client-secret"
+            placeholder="Your client secret from Google Cloud Console"
+            autocomplete="off"
+          >
+          <p class="input-hint">
+            Found in <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud Console</a> →
+            OAuth 2.0 Client IDs → Edit → Client secret. <strong>Never shared — stays in your browser only.</strong>
+          </p>
+        </div>
+
+        <button class="btn btn-primary" id="exchange-btn" onclick="exchangeToken()">
+          🔑 Exchange Code for Tokens
+        </button>
+
+        <div id="exchange-status" style="margin-top:0.75rem; display:none;">
+          <p id="exchange-status-text" style="font-size:0.9rem;"></p>
+        </div>
+
+        <div class="token-area" id="token-result-area">
+          <div class="token-box">
+            <label>YOUTUBE_TOKEN — Copy this entire JSON as a GitHub Secret</label>
+            <button class="copy-btn" onclick="copyText('token-result-display')">Copy</button>
+            <pre id="token-result-display"></pre>
+          </div>
+          <p style="font-size:0.85rem; color:var(--green); margin-top:0.5rem;">
+            ✅ Tokens received! Copy the JSON above and save it as the <code>YOUTUBE_TOKEN</code> GitHub Secret.
+          </p>
+        </div>
+
+        <details style="margin-top:1.25rem;">
+          <summary style="cursor:pointer; color:var(--text-secondary); font-size:0.9rem;">
+            ⚙️ Manual exchange (alternative)
+          </summary>
+          <div style="margin-top:0.75rem;">
+            <div class="token-box" style="position:relative;">
+              <label>Option A — Python helper</label>
               <button class="copy-btn" onclick="copyText('exchange-cmd')">Copy</button>
               <pre id="exchange-cmd">pip install google-auth-oauthlib
 python - &lt;&lt;'EOF'
@@ -1042,7 +1065,16 @@ EOF</pre>
   -d redirect_uri=YOUR_REDIRECT_URI \
   -d grant_type=authorization_code</pre>
             </div>
-          </li>
+          </div>
+        </details>
+      </div>
+
+      <!-- Step 4: Complete Setup -->
+      <div class="card" id="step4-card">
+        <h2><span class="step">4</span> Configure &amp; Launch</h2>
+        <p class="card-description">Add your secrets and enable the automation pipeline.</p>
+
+        <ol class="steps-list" id="setup-steps">
           <li>
             <strong>Get a Pexels API key</strong> — Sign up for free at
             <a href="https://www.pexels.com/api/" target="_blank" rel="noopener">pexels.com/api</a>.
@@ -1052,7 +1084,7 @@ EOF</pre>
             <em>Settings → Secrets and variables → Actions</em> and add:
             <div class="token-box" style="margin-top:0.5rem">
               <pre>YOUTUBE_CLIENT_SECRET  → Full OAuth2 client secret JSON
-YOUTUBE_TOKEN          → JSON with access_token &amp; refresh_token
+YOUTUBE_TOKEN          → JSON with access_token &amp; refresh_token (from Step 3)
 PEXELS_API_KEY         → Your free Pexels API key</pre>
             </div>
           </li>
@@ -1116,6 +1148,7 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
     const state = {
       channelId: null,
       authorized: false,
+      authCode: null,
     };
 
     // ── Restore state from localStorage ───────────────────────────
@@ -1129,9 +1162,17 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
             document.getElementById('channel-url').value = data.channelUrl || '';
             showChannelInfo(data.channelId);
           }
+          if (data.clientId) {
+            document.getElementById('client-id').value = data.clientId;
+          }
           if (data.authorized) {
             state.authorized = true;
             updateStatus('auth', 'done', 'Authorized');
+          }
+          if (data.authCode) {
+            state.authCode = data.authCode;
+            document.getElementById('auth-code-display').textContent = data.authCode;
+            document.getElementById('token-area').classList.add('visible');
           }
         }
       } catch (_) { /* ignore */ }
@@ -1236,13 +1277,98 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
         document.getElementById('token-area').classList.add('visible');
 
         state.authorized = true;
+        state.authCode = code;
         updateStatus('auth', 'done', 'Authorized');
-        saveState({ authorized: true });
+        saveState({ authorized: true, authCode: code });
 
         const cleanUrl = window.location.origin + window.location.pathname;
         window.history.replaceState({}, document.title, cleanUrl);
-        showToast('✅ Authorization successful! Copy the code above.');
+        showToast('✅ Authorization successful! Now exchange the code for tokens in Step 3.');
       }
+    }
+
+    // ── Token Exchange ────────────────────────────────────────────
+    async function exchangeToken() {
+      const authCode = state.authCode || document.getElementById('auth-code-display').textContent.trim();
+      const clientId = document.getElementById('client-id').value.trim() || (loadSavedState() && loadSavedState().clientId);
+      const clientSecret = document.getElementById('client-secret').value.trim();
+      const redirectUri = window.location.origin + window.location.pathname;
+
+      if (!authCode) {
+        showToast('⚠️ No authorization code found. Complete Step 2 first.');
+        return;
+      }
+      if (!clientId) {
+        showToast('⚠️ Client ID is missing. Enter it in Step 2.');
+        return;
+      }
+      if (!clientSecret) {
+        showToast('⚠️ Enter your Client Secret to exchange the code.');
+        return;
+      }
+
+      const btn = document.getElementById('exchange-btn');
+      const statusEl = document.getElementById('exchange-status');
+      const statusText = document.getElementById('exchange-status-text');
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Exchanging…';
+      statusEl.style.display = 'block';
+      statusText.style.color = 'var(--text-secondary)';
+      statusText.textContent = 'Contacting Google OAuth2 server…';
+
+      try {
+        const body = new URLSearchParams({
+          code: authCode,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          grant_type: 'authorization_code'
+        });
+
+        const resp = await fetch('https://oauth2.googleapis.com/token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: body.toString()
+        });
+
+        const data = await resp.json();
+
+        if (!resp.ok) {
+          const errMsg = data.error_description || data.error || 'Unknown error';
+          statusText.style.color = 'var(--red)';
+          statusText.textContent = '❌ Exchange failed: ' + errMsg;
+          showToast('❌ Token exchange failed. Check your credentials.');
+          return;
+        }
+
+        const tokenJson = JSON.stringify({
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+          token_uri: 'https://oauth2.googleapis.com/token'
+        }, null, 2);
+
+        document.getElementById('token-result-display').textContent = tokenJson;
+        document.getElementById('token-result-area').classList.add('visible');
+
+        statusText.style.color = 'var(--green)';
+        statusText.textContent = '✅ Tokens received successfully!';
+        updateStatus('secrets', 'done', 'Token ready');
+        showToast('🎉 Token exchange successful! Copy the JSON and add it as a GitHub Secret.');
+      } catch (err) {
+        statusText.style.color = 'var(--red)';
+        statusText.textContent = '❌ Network error: ' + err.message;
+        showToast('❌ Could not reach Google servers. Try the manual method below.');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '🔑 Exchange Code for Tokens';
+      }
+    }
+
+    function loadSavedState() {
+      try {
+        return JSON.parse(localStorage.getItem('ytAutoState') || '{}');
+      } catch (_) { return {}; }
     }
 
     // ── Status updates ────────────────────────────────────────────
