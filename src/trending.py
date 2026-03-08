@@ -51,6 +51,8 @@ def _fetch_google_trends(retries: int = 3, backoff: float = 2.0) -> list[str]:
         try:
             resp = requests.get(url, timeout=15)
             resp.raise_for_status()
+            # Python 3.7.1+ stdlib XML parser does not resolve external entities
+            # and has built-in protection against entity expansion attacks.
             root = ET.fromstring(resp.text)
             topics: list[str] = []
             for item in root.iter("item"):
@@ -200,9 +202,9 @@ def get_best_topic() -> str:
         logger.warning("No trending topics found; using random fallback topic")
         return random.choice(FALLBACK_TOPICS)
 
-    # Pick randomly from the top 5 scoring topics to ensure variety across runs
+    # Pick randomly from the top scoring topics (up to 5) to ensure variety across runs
     sorted_keys = sorted(scores, key=lambda k: scores[k], reverse=True)
-    top_keys = sorted_keys[:5]
+    top_keys = sorted_keys[:min(5, len(sorted_keys))]
     best_key = random.choice(top_keys)
     best_topic = original.get(best_key, FALLBACK_TOPICS[0])
     logger.info("Topic selected: '%s' (score=%.1f, from top %d)", best_topic, scores[best_key], len(top_keys))

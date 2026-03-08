@@ -191,13 +191,16 @@ def _topic_to_tags(topic: str) -> list[str]:
     return all_tags[:20]
 
 
+_SEED_TIME_GRANULARITY = 3600  # seconds — changes seed every hour
+
+
 def _deterministic_seed(topic: str) -> int:
     """Create a seed from the topic and current time for varied selections.
 
     Incorporates the current hour so that each pipeline run (scheduled every
     few hours) produces a different script even for the same topic.
     """
-    time_component = str(int(time.time() // 3600))
+    time_component = str(int(time.time() // _SEED_TIME_GRANULARITY))
     raw = topic + time_component
     return int(hashlib.md5(raw.encode()).hexdigest()[:8], 16)
 
