@@ -112,41 +112,91 @@ def _resize_clip(clip: Any, w: int, h: int) -> Any:
     y1 = (resized.h - h) / 2
     return resized.crop(x1=x1, y1=y1, x2=x1 + w, y2=y1 + h)
 
+def _split_into_chunks(text: str, max_words: int = 6) -> list[str]:
+    """Break *text* into short word-burst chunks suitable for TikTok-style captions.
+
+    Splits on sentence boundaries first, then breaks long sentences into
+    smaller chunks of at most *max_words* words each.
+    """
+    import re
+    # Split into sentences
+    raw_sentences = re.split(r'(?<=[.!?])\s+', text.replace("\n", " ").strip())
+    chunks: list[str] = []
+    for sentence in raw_sentences:
+        sentence = sentence.strip().rstrip(".!?")
+        if not sentence:
+            continue
+        words = sentence.split()
+        if len(words) <= max_words:
+            chunks.append(sentence)
+        else:
+            # Break into smaller word-burst chunks
+            for start in range(0, len(words), max_words):
+                chunk = " ".join(words[start : start + max_words])
+                if chunk:
+                    chunks.append(chunk)
+    return [c for c in chunks if c]
+
+
 def _build_caption_clips(script_text: str, total_duration: float, video_w: int, video_h: int) -> list[Any]:
-    """Create sentence-level caption TextClips timed across *total_duration*."""
+    """Create TikTok-style word-burst caption clips timed across *total_duration*."""
     try:
-        from moviepy.editor import TextClip  # type: ignore[import]
+        from moviepy.editor import TextClip, ColorClip, CompositeVideoClip  # type: ignore[import]
     except Exception:  # noqa: BLE001
         return []
 
-    sentences = [s.strip() for s in script_text.replace("\n", " ").split(".") if s.strip()]
-    if not sentences:
+    chunks = _split_into_chunks(script_text, max_words=config.SUBTITLE_MAX_WORDS)
+    if not chunks:
         return []
 
-    duration_per_sentence = total_duration / len(sentences)
+    duration_per_chunk = total_duration / len(chunks)
     clips: list[Any] = []
-    for i, sentence in enumerate(sentences):
-        start = i * duration_per_sentence
-        dur = duration_per_sentence
+    y_pos = int(video_h * config.SUBTITLE_POSITION)
+
+    for i, chunk in enumerate(chunks):
+        start = i * duration_per_chunk
+        dur = duration_per_chunk
+        # Alternate between white and the accent highlight color
+        color = config.SUBTITLE_HIGHLIGHT_COLOR if i % 2 == 1 else "white"
+        text_upper = chunk.upper()
         try:
-            txt_clip = (
-                TextClip(
-                    sentence + ".",
-                    fontsize=config.FONT_SIZE,
-                    color=config.FONT_COLOR,
-                    stroke_color="black",
-                    stroke_width=2,
-                    method="caption",
-                    size=(video_w - 80, None),
-                    align="center",
+            txt_clip = TextClip(
+                text_upper,
+                fontsize=config.SUBTITLE_FONT_SIZE,
+                font=config.SUBTITLE_FONT,
+                color=color,
+                stroke_color="black",
+                stroke_width=config.SUBTITLE_STROKE_WIDTH,
+                method="caption",
+                size=(video_w - 80, None),
+                align="center",
+            )
+            txt_w, txt_h = txt_clip.size
+            pad_x, pad_y = 20, 10
+            # Semi-transparent dark background box
+            bg_clip = (
+                ColorClip(
+                    size=(txt_w + pad_x * 2, txt_h + pad_y * 2),
+                    color=(0, 0, 0),
                 )
+                .set_opacity(config.SUBTITLE_BG_OPACITY)
                 .set_start(start)
                 .set_duration(dur)
-                .set_position(("center", int(video_h * 0.70)))
+                .set_position(("center", y_pos - pad_y))
+                .crossfadein(0.1)
+                .crossfadeout(0.1)
             )
-            clips.append(txt_clip)
+            txt_clip = (
+                txt_clip
+                .set_start(start)
+                .set_duration(dur)
+                .set_position(("center", y_pos))
+                .crossfadein(0.1)
+                .crossfadeout(0.1)
+            )
+            clips.extend([bg_clip, txt_clip])
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Could not create caption clip for sentence %d: %s", i, exc)
+            logger.warning("Could not create caption clip for chunk %d: %s", i, exc)
     return clips
 
 # ---------------------------------------------------------------------------
@@ -298,8 +348,10 @@ def create_video(
             fps=config.VIDEO_FPS,
             codec="libx264",
             audio_codec="aac",
-            threads=2,
-            preset="ultrafast",
+            threads=4,
+            preset=config.VIDEO_PRESET,
+            bitrate=config.VIDEO_BITRATE,
+            audio_bitrate=config.AUDIO_BITRATE,
             logger=None,
         )
         logger.info("Video rendered successfully: '%s'", out_path)

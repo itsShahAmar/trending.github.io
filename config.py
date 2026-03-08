@@ -20,8 +20,24 @@ FONT_COLOR: str = "white"
 BG_MUSIC_VOLUME: float = 0.08
 BG_MUSIC_PATH: str = "assets/bg_music.mp3"  # Relative path to background music file (leave empty to disable)
 
-# TTS settings (gTTS — free, no API key needed)
-TTS_LANGUAGE: str = "en"  # gTTS language code
+# Subtitle / caption styling
+SUBTITLE_FONT_SIZE: int = 70
+SUBTITLE_FONT: str = "Liberation-Sans-Bold"
+SUBTITLE_STROKE_WIDTH: int = 3
+SUBTITLE_BG_OPACITY: float = 0.65
+SUBTITLE_HIGHLIGHT_COLOR: str = "#FFD700"
+SUBTITLE_POSITION: float = 0.65
+SUBTITLE_MAX_WORDS: int = 6
+
+# Video encoding quality
+VIDEO_PRESET: str = "medium"
+VIDEO_BITRATE: str = "8000k"
+AUDIO_BITRATE: str = "192k"
+
+# TTS settings (edge-tts — free neural voice, no API key needed)
+TTS_VOICE: str = "en-US-GuyNeural"
+TTS_RATE: str = "+10%"
+TTS_LANGUAGE: str = "en"  # Fallback for gTTS
 
 # Upload settings
 YOUTUBE_CATEGORY_ID: str = "22"  # People & Blogs
