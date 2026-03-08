@@ -8,6 +8,9 @@ import os
 YOUTUBE_CLIENT_SECRET_JSON: str | None = os.getenv("YOUTUBE_CLIENT_SECRET")  # JSON string of OAuth2 client secret
 YOUTUBE_TOKEN_JSON: str | None = os.getenv("YOUTUBE_TOKEN")  # JSON string of OAuth2 token
 PEXELS_API_KEY: str | None = os.getenv("PEXELS_API_KEY")  # For stock footage (free tier)
+REDDIT_CLIENT_ID: str | None = os.getenv("REDDIT_CLIENT_ID")  # Reddit OAuth2 app client ID (optional)
+REDDIT_CLIENT_SECRET: str | None = os.getenv("REDDIT_CLIENT_SECRET")  # Reddit OAuth2 app client secret (optional)
+NEWSAPI_KEY: str | None = os.getenv("NEWSAPI_KEY")  # NewsAPI.org key for trending headlines (optional)
 
 # Video settings
 VIDEO_WIDTH: int = 1080

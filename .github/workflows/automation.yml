@@ -29,6 +29,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y ffmpeg imagemagick fonts-liberation
 
+      - name: Fix ImageMagick security policy for MoviePy text rendering
+        run: |
+          # Allow @filename reads needed by MoviePy TextClip
+          if [ -f /etc/ImageMagick-6/policy.xml ]; then
+            sudo sed -i 's/<policy domain="path" rights="none" pattern="@\*"/<policy domain="path" rights="read|write" pattern="@\*"/g' /etc/ImageMagick-6/policy.xml
+          fi
+
       - name: Install Python dependencies
         run: pip install -r requirements.txt
 
@@ -37,4 +44,7 @@ jobs:
           YOUTUBE_CLIENT_SECRET: ${{ secrets.YOUTUBE_CLIENT_SECRET }}
           YOUTUBE_TOKEN: ${{ secrets.YOUTUBE_TOKEN }}
           PEXELS_API_KEY: ${{ secrets.PEXELS_API_KEY }}
+          REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
+          REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
+          NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
         run: python -m src.pipeline
