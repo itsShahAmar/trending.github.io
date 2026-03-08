@@ -1,30 +1,45 @@
 # 🎬 YouTube Shorts Automation
 
-A fully automated, end-to-end YouTube Shorts creation and upload system that
-runs 24/7 via **GitHub Actions** — no server required, **100% free**.
+<p align="center">
+  <a href="https://github.com/ShahAmar-Official/yt-automation.github.io/actions/workflows/automation.yml">
+    <img src="https://github.com/ShahAmar-Official/yt-automation.github.io/actions/workflows/automation.yml/badge.svg" alt="Pipeline Status">
+  </a>
+  <a href="https://github.com/ShahAmar-Official/yt-automation.github.io/actions/workflows/pages.yml">
+    <img src="https://github.com/ShahAmar-Official/yt-automation.github.io/actions/workflows/pages.yml/badge.svg" alt="Pages Deploy">
+  </a>
+  <a href="LICENSE">
+    <img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License: MIT">
+  </a>
+  <img src="https://img.shields.io/badge/cost-$0.00%2Fvideo-brightgreen" alt="Cost: $0.00/video">
+  <img src="https://img.shields.io/badge/python-3.11-blue" alt="Python 3.11">
+</p>
 
-> **$0.00 per video** — No paid APIs. Uses Google TTS, template-based scripts,
-> free Pexels stock footage, and GitHub Actions.
+<p align="center">
+  A fully automated, end-to-end <strong>YouTube Shorts</strong> creation and upload toolkit that
+  runs 24/7 via <strong>GitHub Actions</strong> — no server required, <strong>100% free</strong>.
+</p>
+
+> **$0.00 per video** — No paid APIs. Uses Microsoft Edge neural TTS, template-based scripts,
+> free Pexels stock footage, and GitHub Actions free tier.
 
 ---
 
-## What it Does
+## ✨ Features
 
-Every 6 hours the pipeline:
-
-1. 🔍 **Finds trending topics** from Google Trends and Hacker News
-2. ✍️ **Writes a professional script** using smart templates with hooks, narration, and CTAs
-3. 🎙️ **Converts the script to speech** using Google TTS (gTTS — free)
-4. 🎬 **Creates a vertical 1080 × 1920 video** with Pexels stock footage and animated captions
-5. 🖼️ **Generates an eye-catching thumbnail** with Pillow
-6. 🚀 **Uploads to YouTube** with optimised title, tags, description, and thumbnail
+- 🔍 **Trending Topic Detection** — Automatically discovers viral topics from Google Trends (US) and Hacker News
+- ✍️ **AI-Style Script Generation** — Produces professional hooks, narration, and CTAs via a smart template engine (no API key needed)
+- 🎙️ **Neural Text-to-Speech** — High-quality voice narration using Microsoft Edge TTS (`en-US-JennyNeural`) with gTTS fallback
+- 🎬 **Automated Video Production** — Assembles portrait (1080 × 1920) videos with Pexels stock footage, animated captions, and crossfade transitions
+- 🖼️ **Thumbnail Generation** — Eye-catching gradient thumbnails created with Pillow
+- 🚀 **YouTube Upload** — Resumable upload with auto-attached thumbnail and optimised metadata via YouTube Data API v3
+- 🌐 **Setup Wizard** — GitHub Pages site for one-click OAuth2 configuration and channel linking
 
 ---
 
-## Architecture
+## 🏗️ Architecture
 
 ```
-GitHub Actions (cron: every 6 h)
+GitHub Actions (cron: every hour)
         │
         ▼
 src/pipeline.py  ──────────────────────────────────────────────┐
@@ -33,7 +48,7 @@ src/pipeline.py  ─────────────────────
         │         │ trending topic                              │
         ├─► src/scriptwriter.py  (Template engine — free)      │
         │         │ title, script, scenes, tags, description    │
-        ├─► src/tts.py           (gTTS — free)                 │
+        ├─► src/tts.py           (Edge TTS / gTTS — free)      │
         │         │ audio MP3 + duration                        │
         ├─► src/video_creator.py (Pexels API + MoviePy)        │
         │         │ 1080×1920 MP4                               │
@@ -46,7 +61,7 @@ src/pipeline.py  ─────────────────────
 
 ---
 
-## Setup
+## 🚀 Quick Start
 
 ### 1. Fork this Repository
 
@@ -95,32 +110,32 @@ and add the following secrets:
 | `PEXELS_API_KEY`         | Your Pexels API key (free)                     |
 
 > **Note:** No OpenAI API key is needed! Script generation and TTS are
-> handled by free alternatives.
+> handled entirely by free alternatives.
 
 ### 5. Enable GitHub Actions
 
 Go to the **Actions** tab in your repository and click **"I understand my
 workflows, go ahead and enable them"** if prompted.
 
-The workflow will run automatically every 6 hours, or you can trigger it
+The workflow will run automatically every hour, or you can trigger it
 manually via **Actions → YouTube Shorts Automation → Run workflow**.
 
 ---
 
-## How it Works — Step by Step
+## 📖 How it Works
 
 | Step | Module | Description |
 |------|--------|-------------|
 | 1 | `src/trending.py` | Fetches daily trending searches from Google Trends (US) and top stories from Hacker News. Scores topics by cross-source appearance. |
 | 2 | `src/scriptwriter.py` | Generates engaging scripts using a template engine with hooks, body variations, CTAs, scene descriptions, tags, and descriptions. Fully deterministic — no API key needed. |
-| 3 | `src/tts.py` | Converts the narration to an MP3 file using Microsoft Edge's free neural TTS (female voice) and measures audio duration. |
-| 4 | `src/video_creator.py` | Queries Pexels for portrait video clips per scene, assembles them with MoviePy, adds captions, overlays audio, and exports to MP4. |
+| 3 | `src/tts.py` | Converts the narration to an MP3 file using Microsoft Edge's free neural TTS (`en-US-JennyNeural`) with gTTS as fallback. |
+| 4 | `src/video_creator.py` | Queries Pexels for portrait video clips per scene, assembles them with MoviePy, adds animated captions, overlays audio, and exports to MP4. |
 | 5 | `src/thumbnail.py` | Creates a gradient 1280 × 720 JPEG thumbnail with the video title and a topic emoji using Pillow. |
 | 6 | `src/uploader.py` | Uploads the video via the YouTube Data API v3 resumable upload endpoint, then attaches the thumbnail. |
 
 ---
 
-## Customisation
+## ⚙️ Customisation
 
 Edit `config.py` to change:
 
@@ -135,7 +150,7 @@ Edit `config.py` to change:
 | `AUDIO_BITRATE` | `256k` | Audio encoding bitrate |
 | `VIDEO_TRANSITION_DURATION` | `0.4` | Crossfade duration between scenes (seconds) |
 | `BG_MUSIC_VOLUME` | `0.08` | Background music volume (0.0 = off). Place an MP3 at the path set by `BG_MUSIC_PATH` to enable. |
-| `BG_MUSIC_PATH` | `"assets/bg_music.mp3"` | Path to the background music MP3 file (relative to the repo root). |
+| `BG_MUSIC_PATH` | `"assets/bg_music.mp3"` | Path to the background music MP3 file (relative to repo root). |
 | `TTS_VOICE` | `"en-US-JennyNeural"` | Microsoft Edge neural voice for TTS (female) |
 | `TTS_LANGUAGE` | `"en"` | Fallback gTTS language code (`en`, `es`, `fr`, `de`, `hi`, etc.) |
 | `YOUTUBE_CATEGORY_ID` | `"22"` | YouTube category (22 = People & Blogs) |
@@ -144,12 +159,12 @@ Edit `config.py` to change:
 
 ---
 
-## Cost Breakdown (per video)
+## 💰 Cost Breakdown (per video)
 
 | Service | Usage | Cost |
 |---------|-------|------|
 | Template engine | Script generation | **Free** |
-| gTTS | Voice narration | **Free** |
+| Edge TTS / gTTS | Voice narration | **Free** |
 | Pexels API | Stock footage | **Free** |
 | Google Trends | Trending topics | **Free** |
 | Hacker News | Trending topics | **Free** |
@@ -158,7 +173,14 @@ Edit `config.py` to change:
 
 ---
 
-## Disclaimer
+## 🤝 Contributing
+
+Contributions are welcome! Please read the [Contributing Guidelines](CONTRIBUTING.md)
+and the [Code of Conduct](CODE_OF_CONDUCT.md) before submitting a pull request.
+
+---
+
+## ⚠️ Disclaimer
 
 This tool is intended for educational and creative purposes. Ensure your use
 of the YouTube API complies with [YouTube's Terms of Service](https://www.youtube.com/t/terms)
@@ -168,7 +190,7 @@ Always review the content before publishing publicly if possible.
 
 ---
 
-## License
+## 📄 License
 
 This project is licensed under the **MIT License**.
 See [LICENSE](LICENSE) for details.
