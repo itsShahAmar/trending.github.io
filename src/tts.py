@@ -7,16 +7,47 @@ API keys required.
 
 Primary engine: edge-tts (Microsoft Edge neural voices — natural, high quality)
 Fallback engine: gTTS (Google's free TTS — works offline)
+
+Quality features:
+- SSML sentence-pause injection for natural, broadcast-style pacing
+- Post-generation loudness normalization via pydub
 """
 
 import asyncio
+import html
 import logging
+import re
 import tempfile
 from pathlib import Path
 
 import config
 
 logger = logging.getLogger(__name__)
+
+
+def _build_ssml(text: str, voice: str, rate: str) -> str:
+    """Wrap *text* in SSML with natural sentence pauses and prosody control.
+
+    Inserts ``<break>`` tags after sentence boundaries and commas so the
+    synthesised speech sounds more like natural broadcast narration rather
+    than a continuous stream of words.
+    """
+    safe = html.escape(text)
+    # Pause after sentence-ending punctuation
+    safe = re.sub(r"([.!?])\s+", r'\1<break time="400ms"/> ', safe)
+    # Short pause after commas
+    safe = re.sub(r",\s+", r',<break time="150ms"/> ', safe)
+    # Pause around em-dashes for a natural rhetorical beat
+    safe = safe.replace(" — ", ' <break time="250ms"/>— ')
+    return (
+        '<speak version="1.0" '
+        'xmlns="http://www.w3.org/2001/10/synthesis" '
+        'xml:lang="en-US">'
+        f'<voice name="{voice}">'
+        f'<prosody rate="{rate}">{safe}</prosody>'
+        "</voice>"
+        "</speak>"
+    )
 
 
 def _get_audio_duration(audio_path: Path) -> float:
@@ -51,11 +82,40 @@ def _get_audio_duration(audio_path: Path) -> float:
     return 0.0
 
 
+def _normalize_audio(audio_path: Path) -> None:
+    """Normalize the loudness of an MP3 file in-place using pydub.
+
+    Brings the peak amplitude to 0 dBFS so the narration always plays
+    at a consistent, clear volume regardless of the TTS engine output level.
+    """
+    try:
+        from pydub import AudioSegment  # type: ignore[import]
+        from pydub.effects import normalize  # type: ignore[import]
+
+        segment = AudioSegment.from_file(str(audio_path))
+        normalized = normalize(segment)
+        normalized.export(str(audio_path), format="mp3", bitrate=config.AUDIO_BITRATE)
+        logger.debug("Audio normalization applied to '%s'", audio_path)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Audio normalization skipped: %s", exc)
+
+
 async def _generate_edge_tts(text: str, output_path: str, voice: str, rate: str) -> None:
-    """Async helper that calls edge-tts to synthesise *text* and save to *output_path*."""
+    """Async helper that calls edge-tts to synthesise *text* and save to *output_path*.
+
+    When ``TTS_NATURAL_PAUSES`` is enabled the text is wrapped in SSML with
+    sentence-level ``<break>`` tags for more natural, broadcast-quality pacing.
+    """
     import edge_tts  # type: ignore[import]
 
-    communicate = edge_tts.Communicate(text, voice, rate=rate)
+    if getattr(config, "TTS_NATURAL_PAUSES", True):
+        ssml = _build_ssml(text, voice, rate)
+        # edge-tts requires the voice name in the Communicate constructor even
+        # when it is already declared inside the SSML <voice> element — it uses
+        # the constructor argument for WebSocket routing metadata.
+        communicate = edge_tts.Communicate(ssml, voice)
+    else:
+        communicate = edge_tts.Communicate(text, voice, rate=rate)
     await communicate.save(output_path)
 
 
@@ -122,6 +182,10 @@ def generate_speech(script_text: str) -> tuple[Path, float]:
             raise RuntimeError(
                 f"Both TTS engines failed — edge-tts: {edge_exc}; gTTS: {gtts_exc}"
             ) from gtts_exc
+
+    # Normalize audio loudness for a consistent, clear output level
+    if getattr(config, "TTS_VOLUME_NORMALIZE", True):
+        _normalize_audio(audio_path)
 
     duration = _get_audio_duration(audio_path)
     logger.info("TTS audio saved to '%s' (%.2f s)", audio_path, duration)

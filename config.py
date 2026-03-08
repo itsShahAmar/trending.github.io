@@ -31,19 +31,28 @@ SUBTITLE_POSITION: float = 0.70
 SUBTITLE_MAX_WORDS: int = 4
 SUBTITLE_BG_CORNER_RADIUS: int = 20
 SUBTITLE_SHADOW_OFFSET: int = 4
+SUBTITLE_WORD_TIMING: bool = True    # scale each caption's duration proportionally by its word count
+SUBTITLE_ADAPTIVE_FONT: bool = True  # increase font size for short (1-2 word) bursts
 
 # Video encoding quality
 VIDEO_PRESET: str = "slow"
 VIDEO_BITRATE: str = "12000k"
 AUDIO_BITRATE: str = "256k"
 VIDEO_TRANSITION_DURATION: float = 0.4
+VIDEO_VIGNETTE: bool = True           # apply a cinematic dark-edge vignette overlay
+VIDEO_CLIP_RANDOM_START: bool = True  # start stock clips at a random timestamp for visual variety
 
 # TTS settings (edge-tts — free neural voice, no API key needed)
 # JennyNeural is a clear, natural female voice well-suited for narration.
 # Browse available voices: https://speech.microsoft.com/portal/voicegallery
 TTS_VOICE: str = "en-US-JennyNeural"
-TTS_RATE: str = "+5%"
-TTS_LANGUAGE: str = "en"  # Fallback for gTTS
+TTS_RATE: str = "+0%"          # natural pace; was "+5%" — slower reads more clearly
+TTS_LANGUAGE: str = "en"       # Fallback for gTTS
+TTS_VOLUME_NORMALIZE: bool = True   # normalize TTS audio loudness with pydub after generation
+TTS_NATURAL_PAUSES: bool = True     # inject SSML <break> pauses at sentence boundaries
+
+# Pexels fetch settings
+PEXELS_PER_PAGE: int = 8  # results per search query — more results = better footage variety
 
 # Upload settings
 YOUTUBE_CATEGORY_ID: str = "22"  # People & Blogs

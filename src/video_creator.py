@@ -15,6 +15,7 @@ Workflow:
 import logging
 import math
 import os
+import random
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -52,7 +53,13 @@ def _pexels_headers() -> dict[str, str]:
     return {"Authorization": config.PEXELS_API_KEY}
 
 def _search_pexels_video(query: str, per_page: int = 5) -> list[str]:
-    """Return a list of downloadable video URLs from Pexels for *query*."""
+    """Return a list of downloadable video URLs from Pexels for *query*.
+
+    Prefers the highest-resolution HD file for each video result so that
+    the assembled footage looks sharp even on high-DPI displays.
+    """
+    # Config value overrides the caller default (more results = better variety)
+    per_page = getattr(config, "PEXELS_PER_PAGE", per_page)
     try:
         resp = requests.get(
             _PEXELS_VIDEO_SEARCH,
@@ -65,10 +72,24 @@ def _search_pexels_video(query: str, per_page: int = 5) -> list[str]:
         urls: list[str] = []
         for video in data.get("videos", []):
             files = video.get("video_files", [])
-            # Prefer HD files, then SD, then any available
-            hd = [f for f in files if f.get("quality") == "hd"]
-            sd = [f for f in files if f.get("quality") == "sd"]
-            chosen = hd[0] if hd else (sd[0] if sd else (files[0] if files else None))
+            if not files:
+                continue
+            # Sort HD files by resolution (largest first) for maximum quality
+            hd_files = sorted(
+                [f for f in files if f.get("quality") == "hd"],
+                key=lambda f: f.get("width", 0) * f.get("height", 0),
+                reverse=True,
+            )
+            sd_files = sorted(
+                [f for f in files if f.get("quality") == "sd"],
+                key=lambda f: f.get("width", 0) * f.get("height", 0),
+                reverse=True,
+            )
+            chosen = (
+                hd_files[0] if hd_files
+                else sd_files[0] if sd_files
+                else files[0]
+            )
             if chosen and chosen.get("link"):
                 urls.append(chosen["link"])
         return urls
@@ -186,6 +207,54 @@ def _make_rounded_rect_image(width: int, height: int, radius: int,
     return np.array(img)
 
 
+def _adaptive_font_size(chunk: str, base_size: int) -> int:
+    """Return a font size scaled to the number of words in *chunk*.
+
+    Short bursts (≤ 2 words) are rendered larger for maximum impact;
+    longer bursts scale down so all text fits comfortably on screen.
+    """
+    words = len(chunk.split())
+    if words <= 1:
+        return min(int(base_size * 1.20), 110)
+    if words == 2:
+        return min(int(base_size * 1.10), 100)
+    if words <= 3:
+        return base_size
+    if words <= 4:
+        return max(int(base_size * 0.90), 62)
+    return max(int(base_size * 0.80), 55)
+
+
+def _make_vignette_clip(w: int, h: int, duration: float) -> Any:
+    """Create a cinematic dark-edge vignette as a transparent :class:`ImageClip`.
+
+    The vignette gradually darkens the corners and edges of the frame,
+    drawing the viewer's eye to the centre of the video.
+    """
+    import numpy as np
+    from moviepy.editor import ImageClip  # type: ignore[import]
+
+    # Vignette shape constants:
+    #   _VIG_INNER_RADIUS  — normalised distance at which darkening begins (0 = centre, 1 = edge)
+    #   _VIG_FALLOFF       — range over which opacity ramps from 0 to maximum
+    #   _VIG_MAX_ALPHA     — peak alpha value (~70 % opacity = 175/255) at the corners
+    _VIG_INNER_RADIUS = 0.35
+    _VIG_FALLOFF = 1.1
+    _VIG_MAX_ALPHA = 175
+
+    img = np.zeros((h, w, 4), dtype=np.uint8)
+    cx, cy = w / 2.0, h / 2.0
+    # Normalised elliptical distance from the centre (1.0 at the corners)
+    y_idx, x_idx = np.mgrid[0:h, 0:w]
+    nx = (x_idx - cx) / cx
+    ny = (y_idx - cy) / cy
+    dist = np.sqrt(nx ** 2 + ny ** 2)
+    # Ramp: transparent inside inner radius, fully dark at corners
+    alpha_norm = np.clip((dist - _VIG_INNER_RADIUS) / _VIG_FALLOFF, 0.0, 1.0)
+    img[:, :, 3] = (alpha_norm * _VIG_MAX_ALPHA).astype(np.uint8)
+    return ImageClip(img, ismask=False, transparent=True).set_duration(duration)
+
+
 def _build_caption_clips(script_text: str, total_duration: float, video_w: int, video_h: int,
                          start_offset: float = 0.0) -> list[Any]:
     """Create professional TikTok-style word-burst captions with rounded pill backgrounds.
@@ -196,6 +265,13 @@ def _build_caption_clips(script_text: str, total_duration: float, video_w: int, 
         video_w: Video width in pixels.
         video_h: Video height in pixels.
         start_offset: Seconds to delay captions from the start (e.g. hook duration).
+
+    Improvements over the basic implementation:
+    - Word-proportional timing: each caption stays on screen proportional to its
+      word count so the viewer has enough time to read every burst.
+    - Adaptive font size: short 1-2 word bursts are rendered larger for impact
+      while longer phrases scale down to fit comfortably on screen.
+    - 6-colour cycling palette for visual variety across the video.
     """
     try:
         from moviepy.editor import TextClip, ImageClip, CompositeVideoClip  # type: ignore[import]
@@ -210,28 +286,51 @@ def _build_caption_clips(script_text: str, total_duration: float, video_w: int, 
     if available_duration <= 0:
         available_duration = total_duration
         start_offset = 0.0
-    duration_per_chunk = available_duration / len(chunks)
+
+    # --- Word-proportional durations -------------------------------------------
+    if getattr(config, "SUBTITLE_WORD_TIMING", True) and len(chunks) > 1:
+        word_counts = [max(1, len(c.split())) for c in chunks]
+        total_words = sum(word_counts)
+        chunk_durations = [available_duration * wc / total_words for wc in word_counts]
+    else:
+        chunk_durations = [available_duration / len(chunks)] * len(chunks)
+
+    # Cumulative start times
+    chunk_starts: list[float] = []
+    t = start_offset
+    for dur in chunk_durations:
+        chunk_starts.append(t)
+        t += dur
+
     clips: list[Any] = []
     y_pos = int(video_h * config.SUBTITLE_POSITION)
     highlight = config.SUBTITLE_HIGHLIGHT_COLOR
     secondary = getattr(config, "SUBTITLE_SECONDARY_COLOR", "#FFD700")
     corner_radius = getattr(config, "SUBTITLE_BG_CORNER_RADIUS", 20)
     shadow_offset = getattr(config, "SUBTITLE_SHADOW_OFFSET", 4)
-    crossfade = min(0.15, duration_per_chunk * 0.2)
 
-    # Cycle through a colour palette for visual variety
-    color_palette = ["white", highlight, "white", secondary]
+    # 6-colour cycling palette for visual variety
+    color_palette = ["white", highlight, secondary, "white", "#FF6B35", highlight]
 
     for i, chunk in enumerate(chunks):
-        start = start_offset + i * duration_per_chunk
-        dur = duration_per_chunk
+        start = chunk_starts[i]
+        dur = chunk_durations[i]
+        crossfade = min(0.15, dur * 0.2)
         color = color_palette[i % len(color_palette)]
         text_upper = chunk.upper()
+
+        # Adaptive font size based on word count
+        font_size = (
+            _adaptive_font_size(chunk, config.SUBTITLE_FONT_SIZE)
+            if getattr(config, "SUBTITLE_ADAPTIVE_FONT", True)
+            else config.SUBTITLE_FONT_SIZE
+        )
+
         try:
             # Main text clip
             txt_clip = TextClip(
                 text_upper,
-                fontsize=config.SUBTITLE_FONT_SIZE,
+                fontsize=font_size,
                 font=config.SUBTITLE_FONT,
                 color=color,
                 stroke_color="black",
@@ -246,7 +345,7 @@ def _build_caption_clips(script_text: str, total_duration: float, video_w: int, 
             # Shadow text for depth effect
             shadow_clip = TextClip(
                 text_upper,
-                fontsize=config.SUBTITLE_FONT_SIZE,
+                fontsize=font_size,
                 font=config.SUBTITLE_FONT,
                 color="#000000",
                 stroke_color="#000000",
@@ -363,7 +462,18 @@ def create_video(
                     if vc.duration < scene_dur:
                         loops = math.ceil(scene_dur / vc.duration)
                         vc = vc.loop(n=loops)
-                    vc = vc.subclip(0, scene_dur)
+                    # Start at a random offset for visual variety across runs.
+                    # Only applied when there is enough extra clip length (> 1 s)
+                    # to ensure we never risk exceeding the available duration.
+                    if getattr(config, "VIDEO_CLIP_RANDOM_START", True):
+                        max_start = max(0.0, vc.duration - scene_dur)
+                        if max_start > 1.0:
+                            start_t = random.uniform(0.0, max_start)
+                            vc = vc.subclip(start_t, start_t + scene_dur)
+                        else:
+                            vc = vc.subclip(0, scene_dur)
+                    else:
+                        vc = vc.subclip(0, scene_dur)
                     vc = _resize_clip(vc, w, h)
                     video_clips.append(vc)
                     clip_added = True
@@ -450,18 +560,28 @@ def create_video(
                 hook_offset = target_duration * (hook_word_count / full_word_count)
         caption_clips = _build_caption_clips(script_text, target_duration, w, h,
                                              start_offset=hook_offset)
-        if caption_clips:
-            final = CompositeVideoClip([base] + caption_clips, size=(w, h))
-        else:
-            final = base
 
         # ------------------------------------------------------------------
-        # 5. Fade-in / fade-out
+        # 5. Compose layers: base video + captions + optional vignette
+        # ------------------------------------------------------------------
+        layers: list[Any] = [base] + caption_clips
+        if getattr(config, "VIDEO_VIGNETTE", True):
+            try:
+                vignette = _make_vignette_clip(w, h, target_duration)
+                layers.append(vignette)
+                logger.debug("Cinematic vignette overlay applied")
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Vignette overlay failed: %s", exc)
+
+        final = CompositeVideoClip(layers, size=(w, h)) if len(layers) > 1 else base
+
+        # ------------------------------------------------------------------
+        # 6. Fade-in / fade-out
         # ------------------------------------------------------------------
         final = final.fadein(0.7).fadeout(0.7)
 
         # ------------------------------------------------------------------
-        # 6. Export
+        # 7. Export
         # ------------------------------------------------------------------
         out_tmp = tempfile.NamedTemporaryFile(suffix=".mp4", delete=False)
         out_path = Path(out_tmp.name)
