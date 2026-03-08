@@ -71,6 +71,7 @@ def run_pipeline() -> None:
         script_data = generate_script(topic)
         title = script_data["title"]
         script_text = script_data["script"]
+        caption_text = script_data["caption_script"]
         scenes = script_data["scenes"]
         tags = script_data["tags"]
         description = script_data["description"]
@@ -91,7 +92,7 @@ def run_pipeline() -> None:
         logger.info("[4/6] Creating video…")
         from src.video_creator import create_video  # noqa: PLC0415
 
-        video_path = create_video(audio_path, script_text, scenes, audio_duration)
+        video_path = create_video(audio_path, caption_text, scenes, audio_duration)
         logger.info("      Video path: '%s'", video_path)
 
         # ------------------------------------------------------------------

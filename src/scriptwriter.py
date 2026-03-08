@@ -10,6 +10,7 @@ import hashlib
 import logging
 import random
 import re
+import time
 from typing import TypedDict
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ class ScriptData(TypedDict):
 
     title: str
     script: str
+    caption_script: str
     scenes: list[str]
     tags: list[str]
     description: str
@@ -190,8 +192,14 @@ def _topic_to_tags(topic: str) -> list[str]:
 
 
 def _deterministic_seed(topic: str) -> int:
-    """Create a deterministic seed from the topic for reproducible selections."""
-    return int(hashlib.md5(topic.encode()).hexdigest()[:8], 16)
+    """Create a seed from the topic and current time for varied selections.
+
+    Incorporates the current hour so that each pipeline run (scheduled every
+    few hours) produces a different script even for the same topic.
+    """
+    time_component = str(int(time.time() // 3600))
+    raw = topic + time_component
+    return int(hashlib.md5(raw.encode()).hexdigest()[:8], 16)
 
 
 def _titlecase_topic(topic: str) -> str:
@@ -206,15 +214,15 @@ def _titlecase_topic(topic: str) -> str:
 def generate_script(topic: str) -> ScriptData:
     """Generate a structured YouTube Shorts script for *topic*.
 
-    Uses deterministic templates with seeded randomisation so the same topic
-    always produces the same script (useful for testing / debugging).
+    Uses templates with time-seeded randomisation so each pipeline run
+    produces a different script, even for the same topic.
 
     Args:
         topic: The trending topic string to write about.
 
     Returns:
-        A :class:`ScriptData` dict with title, script, scenes, tags, and
-        description.
+        A :class:`ScriptData` dict with title, script, caption_script,
+        scenes, tags, and description.
 
     Raises:
         ValueError: If the generated script fails validation.
@@ -232,8 +240,11 @@ def generate_script(topic: str) -> ScriptData:
     cta = rng.choice(_CTAS).format(topic=display_topic)
     scenes = list(rng.choice(_SCENE_SETS))
 
-    # Build the full script
+    # Build the full script (hook + body + cta for TTS audio)
     script_text = f"{hook} {body} {cta}"
+
+    # Caption script excludes the hook to avoid duplicating the title on-screen
+    caption_text = f"{body} {cta}"
 
     # Build title
     title = rng.choice(_TITLE_TEMPLATES).format(Topic=display_topic)
@@ -260,6 +271,7 @@ def generate_script(topic: str) -> ScriptData:
     script_data = ScriptData(
         title=title,
         script=script_text,
+        caption_script=caption_text,
         scenes=scenes,
         tags=tags,
         description=description,

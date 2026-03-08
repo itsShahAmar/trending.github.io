@@ -6,7 +6,9 @@ best topic using a simple cross-source scoring heuristic.
 """
 
 import logging
+import random
 import time
+import xml.etree.ElementTree as ET
 from typing import Any
 
 import requests
@@ -38,26 +40,27 @@ FALLBACK_TOPICS: list[str] = [
 
 
 def _fetch_google_trends(retries: int = 3, backoff: float = 2.0) -> list[str]:
-    """Fetch daily trending searches for the US from Google Trends.
+    """Fetch daily trending searches for the US from Google Trends RSS feed.
 
-    Uses pytrends if available, otherwise falls back to an empty list so the
-    rest of the pipeline can continue with Hacker News results.
+    Uses the public Google Trends RSS endpoint which is more reliable than
+    the unofficial pytrends scraping library.
     """
-    try:
-        from pytrends.request import TrendReq  # type: ignore[import]
-    except ImportError:
-        logger.warning("pytrends not installed — skipping Google Trends")
-        return []
+    url = "https://trends.google.com/trending/rss?geo=US"
 
     for attempt in range(1, retries + 1):
         try:
-            pt = TrendReq(hl="en-US", tz=360, timeout=(10, 25))
-            trending_df = pt.trending_searches(pn="united_states")
-            topics: list[str] = trending_df[0].tolist()
-            logger.info("Google Trends returned %d topics", len(topics))
+            resp = requests.get(url, timeout=15)
+            resp.raise_for_status()
+            root = ET.fromstring(resp.text)
+            topics: list[str] = []
+            for item in root.iter("item"):
+                title_el = item.find("title")
+                if title_el is not None and title_el.text:
+                    topics.append(title_el.text.strip())
+            logger.info("Google Trends RSS returned %d topics", len(topics))
             return topics[:20]
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Google Trends attempt %d/%d failed: %s", attempt, retries, exc)
+            logger.warning("Google Trends RSS attempt %d/%d failed: %s", attempt, retries, exc)
             if attempt < retries:
                 time.sleep(backoff * attempt)
     return []
@@ -194,12 +197,15 @@ def get_best_topic() -> str:
             original[key] = topic.strip()
 
     if not scores:
-        logger.warning("No trending topics found; using first fallback topic")
-        return FALLBACK_TOPICS[0]
+        logger.warning("No trending topics found; using random fallback topic")
+        return random.choice(FALLBACK_TOPICS)
 
-    best_key = max(scores, key=lambda k: scores[k])
+    # Pick randomly from the top 5 scoring topics to ensure variety across runs
+    sorted_keys = sorted(scores, key=lambda k: scores[k], reverse=True)
+    top_keys = sorted_keys[:5]
+    best_key = random.choice(top_keys)
     best_topic = original.get(best_key, FALLBACK_TOPICS[0])
-    logger.info("Best topic selected: '%s' (score=%.1f)", best_topic, scores[best_key])
+    logger.info("Topic selected: '%s' (score=%.1f, from top %d)", best_topic, scores[best_key], len(top_keys))
 
     # Pad the combined topic list with fallbacks so get_trending_topics() stays
     # consistent without making a second round of network calls.
