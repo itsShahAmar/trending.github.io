@@ -351,11 +351,14 @@ def _build_caption_clips(script_text: str, total_duration: float, video_w: int, 
     start_offset += subtitle_delay
 
     available_duration = total_duration - start_offset - end_buffer
+    # Graceful fallback for very short videos: first drop the end buffer,
+    # then drop the caller's start_offset (keep the subtitle delay so
+    # captions still trail the speech slightly).
     if available_duration <= 0:
         available_duration = total_duration - start_offset
-    if available_duration <= 0:
-        available_duration = total_duration
-        start_offset = subtitle_delay
+        if available_duration <= 0:
+            available_duration = total_duration
+            start_offset = subtitle_delay
 
     # Word-proportional durations — longer chunks stay on screen longer
     if getattr(config, "SUBTITLE_WORD_TIMING", True) and len(chunks) > 1:
