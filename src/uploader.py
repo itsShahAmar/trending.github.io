@@ -54,25 +54,37 @@ def _build_credentials() -> "google.oauth2.credentials.Credentials":  # type: ig
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"Invalid YOUTUBE_TOKEN JSON: {exc}") from exc
 
+    # NOTE: Do NOT pass ``scopes`` here.  When scopes are provided, the
+    # google-auth library includes them in the token-refresh request body.
+    # Google's OAuth2 server rejects refresh requests that carry a ``scope``
+    # parameter, returning ``invalid_scope: Bad Request``.  Omitting scopes
+    # lets the server refresh using the scopes that were originally granted
+    # during the authorization flow.
     creds = Credentials(
         token=token_info.get("access_token") or token_info.get("token"),
         refresh_token=token_info.get("refresh_token"),
         client_id=client_id,
         client_secret=client_secret,
         token_uri=token_uri,
-        scopes=[
-            "https://www.googleapis.com/auth/youtube.upload",
-            "https://www.googleapis.com/auth/youtube.force-ssl",
-        ],
     )
 
-    # Refresh if expired
-    if creds.expired and creds.refresh_token:
+    # Always proactively refresh when we have a refresh token.  The
+    # ``creds.expired`` flag is unreliable here because the Credentials
+    # object is constructed from stored JSON that typically lacks an
+    # ``expiry`` field — so ``expired`` is always ``False`` even if the
+    # access token has long since expired.  A forced refresh guarantees we
+    # start the upload with a valid access token and avoids relying on
+    # google-auth-httplib2's automatic 401-retry (which would also trigger
+    # the scope issue described above if scopes were present).
+    if creds.refresh_token:
         try:
             creds.refresh(Request())
             logger.info("OAuth2 token refreshed successfully")
         except Exception as exc:  # noqa: BLE001
-            logger.warning("Token refresh failed: %s", exc)
+            logger.warning(
+                "Token refresh failed (will attempt upload with existing "
+                "access token): %s", exc,
+            )
 
     return creds
 
