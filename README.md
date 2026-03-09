@@ -39,7 +39,7 @@
 ## 🏗️ Architecture
 
 ```
-GitHub Actions (cron: every hour)
+GitHub Actions (cron: every 6 hours)
         │
         ▼
 src/pipeline.py  ──────────────────────────────────────────────┐
@@ -117,7 +117,7 @@ and add the following secrets:
 Go to the **Actions** tab in your repository and click **"I understand my
 workflows, go ahead and enable them"** if prompted.
 
-The workflow will run automatically every hour, or you can trigger it
+The workflow will run automatically every 6 hours, or you can trigger it
 manually via **Actions → YouTube Shorts Automation → Run workflow**.
 
 ---

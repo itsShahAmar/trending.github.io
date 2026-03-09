@@ -413,7 +413,7 @@ def _detect_category(topic: str) -> str | None:
     return None
 
 
-_SEED_TIME_GRANULARITY = 3600  # seconds — changes seed every hour
+_SEED_TIME_GRANULARITY = 21600  # seconds — changes seed every 6 hours
 
 
 def _deterministic_seed(topic: str) -> int:
@@ -480,8 +480,17 @@ def generate_script(topic: str) -> ScriptData:
     # Build tags
     tags = _topic_to_tags(topic)
 
-    # Build description
-    hashtags = " ".join(f"#{t}" for t in tags[:10])
+    # Build description with trending hashtags
+    try:
+        from src.trending import get_trending_hashtags  # noqa: PLC0415
+        trending_hashtags = get_trending_hashtags(max_tags=10)
+    except Exception:  # noqa: BLE001
+        trending_hashtags = []
+
+    if trending_hashtags:
+        hashtags = " ".join(trending_hashtags[:10])
+    else:
+        hashtags = " ".join(f"#{t}" for t in tags[:10])
     description = _DESCRIPTION_TEMPLATE.format(
         title=title,
         topic=display_topic,

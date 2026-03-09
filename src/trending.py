@@ -7,6 +7,7 @@ best topic using a simple cross-source scoring heuristic.
 
 import logging
 import random
+import re
 import time
 import xml.etree.ElementTree as ET
 
@@ -20,7 +21,7 @@ logger = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 _MIN_TOPICS = 10  # Minimum number of topics to maintain in the combined list
-_SEED_TIME_GRANULARITY = 3600  # seconds — rotate niche pool every hour
+_SEED_TIME_GRANULARITY = 21600  # seconds — rotate niche pool every 6 hours
 
 # ---------------------------------------------------------------------------
 # Fallback topics used when all external sources fail
@@ -278,6 +279,62 @@ def get_trending_topics() -> list[str]:
 
     logger.info("Total unique topics available: %d", len(combined))
     return combined
+
+
+def get_trending_hashtags(topics: list[str] | None = None, max_tags: int = 15) -> list[str]:
+    """Generate trending hashtags from current trending topics.
+
+    Extracts meaningful keywords from each topic, converts them to hashtag
+    format (``#CamelCase``), and returns a deduplicated list combined with
+    evergreen Shorts hashtags.
+
+    Args:
+        topics: Pre-fetched list of trending topic strings.  When *None*,
+            :func:`get_trending_topics` is called automatically.
+        max_tags: Maximum number of hashtags to return (default 15).
+
+    Returns:
+        A list of hashtag strings, e.g. ``["#AI", "#Trending", "#Shorts"]``.
+    """
+    if topics is None:
+        topics = get_trending_topics()
+
+    _EVERGREEN_HASHTAGS: list[str] = [
+        "#Shorts", "#Trending", "#Viral", "#FYP", "#MustWatch",
+    ]
+
+    seen: set[str] = set()
+    hashtags: list[str] = []
+
+    for topic in topics:
+        # Strip non-alphanumeric characters and title-case each word
+        words = re.sub(r"[^a-zA-Z0-9\s]", "", topic).split()
+        if not words:
+            continue
+
+        # Single-word tag from each significant word (length > 2)
+        for w in words:
+            if len(w) > 2:
+                tag = f"#{w.capitalize()}"
+                if tag.lower() not in seen:
+                    seen.add(tag.lower())
+                    hashtags.append(tag)
+
+        # Multi-word compound tag from first two words
+        if len(words) >= 2:
+            compound = f"#{''.join(w.capitalize() for w in words[:2])}"
+            if compound.lower() not in seen:
+                seen.add(compound.lower())
+                hashtags.append(compound)
+
+    # Append evergreen hashtags that aren't already present
+    for tag in _EVERGREEN_HASHTAGS:
+        if tag.lower() not in seen:
+            seen.add(tag.lower())
+            hashtags.append(tag)
+
+    logger.info("Generated %d trending hashtags", min(max_tags, len(hashtags)))
+    return hashtags[:max_tags]
 
 
 def get_best_topic() -> str:
