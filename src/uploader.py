@@ -17,6 +17,23 @@ logger = logging.getLogger(__name__)
 _MAX_RETRIES = 3
 _CHUNK_SIZE = 4 * 1024 * 1024  # 4 MB resumable upload chunks
 
+# OAuth error codes that indicate a permanent credential problem.  Retrying
+# with the same credentials will never succeed — the user must re-authorise.
+_FATAL_OAUTH_ERRORS = frozenset({"invalid_scope", "invalid_grant", "invalid_client"})
+
+_REAUTH_HINT = (
+    "Your YouTube OAuth2 credentials are invalid or expired.  To fix this:\n"
+    "  1. Re-run the OAuth2 authorization flow (see README - Quick Start).\n"
+    "  2. Update the YOUTUBE_TOKEN GitHub Secret with the new token JSON.\n"
+    "  3. Re-run the pipeline."
+)
+
+
+def _is_fatal_oauth_error(exc: Exception) -> bool:
+    """Return ``True`` if *exc* is a credential error that will never succeed on retry."""
+    msg = str(exc).lower()
+    return any(code in msg for code in _FATAL_OAUTH_ERRORS)
+
 
 def _build_credentials() -> "google.oauth2.credentials.Credentials":  # type: ignore[name-defined]
     """Build OAuth2 credentials from the environment variable JSON strings.
@@ -81,6 +98,11 @@ def _build_credentials() -> "google.oauth2.credentials.Credentials":  # type: ig
             creds.refresh(Request())
             logger.info("OAuth2 token refreshed successfully")
         except Exception as exc:  # noqa: BLE001
+            if _is_fatal_oauth_error(exc):
+                raise RuntimeError(
+                    f"OAuth2 token refresh failed with a permanent error: {exc}\n"
+                    f"{_REAUTH_HINT}"
+                ) from exc
             logger.warning(
                 "Token refresh failed (will attempt upload with existing "
                 "access token): %s", exc,
@@ -162,6 +184,11 @@ def upload_video(
 
         except Exception as exc:  # noqa: BLE001
             logger.warning("Upload attempt %d/%d failed: %s", attempt, _MAX_RETRIES, exc)
+            if _is_fatal_oauth_error(exc):
+                raise RuntimeError(
+                    f"Upload failed due to a permanent credential error: {exc}\n"
+                    f"{_REAUTH_HINT}"
+                ) from exc
             if attempt < _MAX_RETRIES:
                 time.sleep(2**attempt)
 
