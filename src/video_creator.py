@@ -168,6 +168,21 @@ def _ken_burns_effect(clip: Any, w: int, h: int, zoom_ratio: float = 0.08) -> An
 
     return clip.fl(_zoom_frame)
 
+def _clean_text_for_display(text: str) -> str:
+    """Sanitise *text* for on-screen subtitle display.
+
+    Strips any residual HTML/XML markup or entities so viewers never see
+    raw code in the captions.
+    """
+    import re as _re
+    cleaned = _re.sub(r"<[^>]+>", " ", text)
+    cleaned = _re.sub(r"&[a-zA-Z]+;", " ", cleaned)
+    cleaned = _re.sub(r"&#x?[0-9a-fA-F]+;", " ", cleaned)
+    cleaned = cleaned.replace("<", " ").replace(">", " ")
+    cleaned = _re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
+
+
 def _split_into_chunks(text: str, max_words: int = 6) -> list[str]:
     """Break *text* into short word-burst chunks suitable for TikTok-style captions.
 
@@ -278,7 +293,9 @@ def _build_caption_clips(script_text: str, total_duration: float, video_w: int, 
     except Exception:  # noqa: BLE001
         return []
 
-    chunks = _split_into_chunks(script_text, max_words=config.SUBTITLE_MAX_WORDS)
+    chunks = _split_into_chunks(
+        _clean_text_for_display(script_text), max_words=config.SUBTITLE_MAX_WORDS
+    )
     if not chunks:
         return []
 

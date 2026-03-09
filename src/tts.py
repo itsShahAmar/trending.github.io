@@ -9,12 +9,11 @@ Primary engine: edge-tts (Microsoft Edge neural voices — natural, high quality
 Fallback engine: gTTS (Google's free TTS — works offline)
 
 Quality features:
-- SSML sentence-pause injection for natural, broadcast-style pacing
+- Text sanitisation to strip any markup before synthesis
 - Post-generation loudness normalization via pydub
 """
 
 import asyncio
-import html
 import logging
 import re
 import tempfile
@@ -25,29 +24,23 @@ import config
 logger = logging.getLogger(__name__)
 
 
-def _build_ssml(text: str, voice: str, rate: str) -> str:
-    """Wrap *text* in SSML with natural sentence pauses and prosody control.
+def _clean_text_for_tts(text: str) -> str:
+    """Sanitise *text* so it is safe and natural for TTS engines.
 
-    Inserts ``<break>`` tags after sentence boundaries and commas so the
-    synthesised speech sounds more like natural broadcast narration rather
-    than a continuous stream of words.
+    Strips any residual markup, normalises whitespace, and removes characters
+    that TTS engines may try to spell out (e.g. ``<``, ``>``, ``&``).
     """
-    safe = html.escape(text)
-    # Pause after sentence-ending punctuation
-    safe = re.sub(r"([.!?])\s+", r'\1<break time="400ms"/> ', safe)
-    # Short pause after commas
-    safe = re.sub(r",\s+", r',<break time="150ms"/> ', safe)
-    # Pause around em-dashes for a natural rhetorical beat
-    safe = safe.replace(" — ", ' <break time="250ms"/>— ')
-    return (
-        '<speak version="1.0" '
-        'xmlns="http://www.w3.org/2001/10/synthesis" '
-        'xml:lang="en-US">'
-        f'<voice name="{voice}">'
-        f'<prosody rate="{rate}">{safe}</prosody>'
-        "</voice>"
-        "</speak>"
-    )
+    # Remove any XML/HTML-like tags that may have leaked in
+    cleaned = re.sub(r"<[^>]+>", " ", text)
+    # Remove HTML entities
+    cleaned = re.sub(r"&[a-zA-Z]+;", " ", cleaned)
+    cleaned = re.sub(r"&#x?[0-9a-fA-F]+;", " ", cleaned)
+    # Remove stray angle brackets; convert literal ampersands to "and"
+    # so the TTS voice says "and" instead of spelling out "ampersand"
+    cleaned = cleaned.replace("<", " ").replace(">", " ").replace("&", " and ")
+    # Collapse multiple spaces into one
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    return cleaned
 
 
 def _get_audio_duration(audio_path: Path) -> float:
@@ -103,19 +96,14 @@ def _normalize_audio(audio_path: Path) -> None:
 async def _generate_edge_tts(text: str, output_path: str, voice: str, rate: str) -> None:
     """Async helper that calls edge-tts to synthesise *text* and save to *output_path*.
 
-    When ``TTS_NATURAL_PAUSES`` is enabled the text is wrapped in SSML with
-    sentence-level ``<break>`` tags for more natural, broadcast-quality pacing.
+    Passes plain text to edge-tts (SSML is **not** used because edge-tts v7+
+    internally escapes all XML tags, which causes the TTS engine to read the
+    markup aloud instead of interpreting it).  The neural voice already
+    handles sentence boundaries and comma pauses naturally from punctuation.
     """
     import edge_tts  # type: ignore[import]
 
-    if getattr(config, "TTS_NATURAL_PAUSES", True):
-        ssml = _build_ssml(text, voice, rate)
-        # edge-tts requires the voice name in the Communicate constructor even
-        # when it is already declared inside the SSML <voice> element — it uses
-        # the constructor argument for WebSocket routing metadata.
-        communicate = edge_tts.Communicate(ssml, voice)
-    else:
-        communicate = edge_tts.Communicate(text, voice, rate=rate)
+    communicate = edge_tts.Communicate(text, voice, rate=rate)
     await communicate.save(output_path)
 
 
@@ -143,13 +131,17 @@ def generate_speech(script_text: str) -> tuple[Path, float]:
 
     logger.info("Generating TTS for %d characters of script text…", len(script_text))
 
+    # Sanitise the text to ensure no markup or special characters are spoken
+    clean_text = _clean_text_for_tts(script_text)
+    logger.debug("Cleaned TTS text (%d chars): %s…", len(clean_text), clean_text[:80])
+
     # --- Primary: edge-tts (free Microsoft neural voice) ---
     try:
         import edge_tts  # type: ignore[import]  # noqa: F401 — check availability before asyncio.run
 
         asyncio.run(
             _generate_edge_tts(
-                script_text,
+                clean_text,
                 str(audio_path),
                 config.TTS_VOICE,
                 config.TTS_RATE,
@@ -171,7 +163,7 @@ def generate_speech(script_text: str) -> tuple[Path, float]:
 
         try:
             tts = gTTS(
-                text=script_text,
+                text=clean_text,
                 lang=config.TTS_LANGUAGE,
                 slow=False,
             )

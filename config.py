@@ -49,7 +49,6 @@ TTS_VOICE: str = "en-US-JennyNeural"
 TTS_RATE: str = "+0%"          # natural pace; was "+5%" — slower reads more clearly
 TTS_LANGUAGE: str = "en"       # Fallback for gTTS
 TTS_VOLUME_NORMALIZE: bool = True   # normalize TTS audio loudness with pydub after generation
-TTS_NATURAL_PAUSES: bool = True     # inject SSML <break> pauses at sentence boundaries
 
 # Pexels fetch settings
 PEXELS_PER_PAGE: int = 8  # results per search query — more results = better footage variety
