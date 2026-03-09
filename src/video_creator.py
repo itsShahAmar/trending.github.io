@@ -661,7 +661,7 @@ def create_video(
         #    hook) are captioned in one consistent zone.  No top subtitle.
         # ------------------------------------------------------------------
         caption_clips = _build_caption_clips(
-            script_text, target_duration, w, h, start_offset=0.0
+            script_text, audio_duration, w, h, start_offset=0.0
         )
 
         # ------------------------------------------------------------------

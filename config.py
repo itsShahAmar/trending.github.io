@@ -44,8 +44,8 @@ SUBTITLE_WORD_TIMING: bool = True      # scale each caption's duration by word c
 SUBTITLE_ADAPTIVE_FONT: bool = True    # bigger font for short (1-2 word) power bursts
 SUBTITLE_POP_SCALE: float = 1.12      # scale factor for 1-word pop-in animation
 SUBTITLE_ALL_CAPS: bool = True         # render captions in uppercase for impact
-SUBTITLE_DELAY: float = 0.25          # seconds to delay captions so they trail speech (sync fix)
-SUBTITLE_END_BUFFER: float = 0.4      # seconds of padding at the end; prevents captions outrunning speech
+SUBTITLE_DELAY: float = 0.05          # seconds to delay captions so they trail speech (sync fix)
+SUBTITLE_END_BUFFER: float = 0.15     # seconds of padding at the end; prevents captions outrunning speech
 
 # ---------------------------------------------------------------------------
 # Video encoding quality — high-bitrate for crisp 1080 × 1920 Shorts

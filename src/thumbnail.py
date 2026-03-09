@@ -98,25 +98,29 @@ def _draw_text_with_stroke(draw: ImageDraw.ImageDraw, xy: tuple[int, int], text:
         draw.text(xy, text, font=font, fill=fill)
 
 
-def _topic_emoji(topic: str) -> str:
-    """Return a simple emoji that loosely matches the topic keyword."""
+def _topic_emoji(topic: str) -> tuple[str, str]:
+    """Return ``(emoji, label)`` that loosely matches the topic keyword.
+
+    The emoji may not render with standard TrueType fonts.  The label is a
+    short ASCII text badge used as a reliable fallback.
+    """
     topic_lower = topic.lower()
     mapping = [
-        (["ai", "artificial intelligence", "robot", "tech"], "🤖"),
-        (["space", "nasa", "rocket", "planet", "star"], "🚀"),
-        (["money", "finance", "crypto", "stock", "invest"], "💰"),
-        (["health", "fitness", "gym", "workout", "diet"], "💪"),
-        (["food", "cook", "recipe", "eat", "restaurant"], "🍔"),
-        (["travel", "vacation", "trip", "adventure"], "✈️"),
-        (["science", "research", "discover", "experiment"], "🔬"),
-        (["music", "song", "artist", "album", "concert"], "🎵"),
-        (["sport", "game", "football", "basketball", "soccer"], "⚽"),
-        (["news", "world", "politics", "election"], "📰"),
+        (["ai", "artificial intelligence", "robot", "tech"], "🤖", "AI"),
+        (["space", "nasa", "rocket", "planet", "star"], "🚀", "SPACE"),
+        (["money", "finance", "crypto", "stock", "invest"], "💰", "MONEY"),
+        (["health", "fitness", "gym", "workout", "diet"], "💪", "FIT"),
+        (["food", "cook", "recipe", "eat", "restaurant"], "🍔", "FOOD"),
+        (["travel", "vacation", "trip", "adventure"], "✈️", "TRAVEL"),
+        (["science", "research", "discover", "experiment"], "🔬", "SCI"),
+        (["music", "song", "artist", "album", "concert"], "🎵", "MUSIC"),
+        (["sport", "game", "football", "basketball", "soccer"], "⚽", "SPORT"),
+        (["news", "world", "politics", "election"], "📰", "NEWS"),
     ]
-    for keywords, emoji in mapping:
+    for keywords, emoji, label in mapping:
         if any(kw in topic_lower for kw in keywords):
-            return emoji
-    return "🔥"  # default
+            return emoji, label
+    return "🔥", "HOT"  # default
 
 
 def create_thumbnail(title: str, topic: str) -> Path:
@@ -148,16 +152,26 @@ def create_thumbnail(title: str, topic: str) -> Path:
         fill=(25, 25, 25),
     )
     glow = glow.filter(ImageFilter.GaussianBlur(radius=60))
+    img = img.convert("RGB")
+    glow = glow.convert("RGB")
     img = Image.blend(img, glow, alpha=0.3)
     draw = ImageDraw.Draw(img)
 
-    # Emoji (large, top-left region)
-    emoji = _topic_emoji(topic)
+    # Emoji / text badge (top-left region)
+    emoji, emoji_label = _topic_emoji(topic)
     emoji_font = _load_font(140)
+    emoji_rendered = False
     try:
         draw.text((60, 30), emoji, font=emoji_font, fill=_ACCENT_COLOR)
+        emoji_rendered = True
     except Exception:  # noqa: BLE001
         pass
+    if not emoji_rendered:
+        # Render a short text badge when the emoji glyph is unavailable
+        badge_font = _load_font(52)
+        draw.rounded_rectangle([(50, 30), (50 + len(emoji_label) * 34 + 20, 100)],
+                                radius=14, fill=_ACCENT_COLOR)
+        draw.text((60, 36), emoji_label, font=badge_font, fill=(10, 10, 45))
 
     # Title text with stroke for readability
     title_font = _load_font(95)
