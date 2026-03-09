@@ -240,17 +240,21 @@ def upload_video(
 def _set_thumbnail(youtube: object, video_id: str, thumbnail_path: Path) -> None:
     """Attach *thumbnail_path* to the already-uploaded *video_id*.
 
-    Retries up to 3 times with increasing delays because YouTube may still
-    be processing the video immediately after upload.
+    Builds fresh credentials and a new YouTube service for each attempt
+    because the original access token may have expired during the
+    (potentially minutes-long) video upload.  Retries with increasing
+    delays because YouTube may still be processing the video immediately
+    after upload.
     """
     try:
+        from googleapiclient.discovery import build  # type: ignore[import]
         from googleapiclient.http import MediaFileUpload  # type: ignore[import]
         from googleapiclient.errors import HttpError  # type: ignore[import]
     except ImportError:
         logger.warning("google-api-python-client not available; skipping thumbnail")
         return
 
-    _THUMBNAIL_RETRY_DELAYS = [5, 10, 15]  # seconds to wait before each attempt
+    _THUMBNAIL_RETRY_DELAYS = [10, 30, 60]  # seconds to wait before each attempt
 
     for attempt, delay in enumerate(_THUMBNAIL_RETRY_DELAYS, start=1):
         try:
@@ -259,8 +263,13 @@ def _set_thumbnail(youtube: object, video_id: str, thumbnail_path: Path) -> None
                         delay, attempt, len(_THUMBNAIL_RETRY_DELAYS))
             time.sleep(delay)
 
+            # Build fresh credentials for each attempt to avoid expired tokens
+            fresh_creds = _build_credentials()
+            fresh_youtube = build("youtube", "v3", credentials=fresh_creds,
+                                  cache_discovery=False)
+
             fresh_media = MediaFileUpload(str(thumbnail_path), mimetype="image/jpeg")
-            youtube.thumbnails().set(  # type: ignore[union-attr]
+            fresh_youtube.thumbnails().set(
                 videoId=video_id, media_body=fresh_media
             ).execute()
             logger.info("Thumbnail set for video %s", video_id)
