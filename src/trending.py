@@ -201,14 +201,12 @@ def _fetch_youtube_trending_rss(retries: int = 3, backoff: float = 2.0) -> list[
 def _get_viral_shorts_niches(count: int = 15) -> list[str]:
     """Return a rotating subset of proven viral YouTube Shorts niche topics.
 
-    Uses time-seeded randomisation so that each hourly pipeline run picks
+    Uses time-seeded randomization so that each hourly pipeline run picks
     a different batch of niches, keeping content fresh and varied.
     """
     seed = int(time.time()) // _SEED_TIME_GRANULARITY
     rng = random.Random(seed)
-    pool = list(_VIRAL_SHORTS_NICHES)
-    rng.shuffle(pool)
-    selected = pool[:count]
+    selected = rng.sample(_VIRAL_SHORTS_NICHES, min(count, len(_VIRAL_SHORTS_NICHES)))
     logger.info("Viral Shorts niches selected %d topics (seed=%d)", len(selected), seed)
     return selected
 
