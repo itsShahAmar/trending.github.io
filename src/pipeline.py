@@ -76,6 +76,25 @@ def run_pipeline() -> None:
         from src.scriptwriter import generate_script  # noqa: PLC0415
 
         script_data = generate_script(topic)
+
+        # ------------------------------------------------------------------
+        # Step 2b: Viral optimization (enrich script data with engagement hooks)
+        # ------------------------------------------------------------------
+        if getattr(config, "VIRAL_OPTIMIZATION_ENABLED", False):
+            try:
+                from src.viral_optimizer import ViralOptimizer  # noqa: PLC0415
+                optimizer = ViralOptimizer()
+                optimized = optimizer.optimize_script_data(script_data, topic)
+                # Overlay viral fields onto script_data while keeping base fields intact
+                script_data = {**script_data, **optimized}
+                logger.info(
+                    "      Viral score: %.2f — signals: %s",
+                    optimized.get("viral_score", 0.0),
+                    ", ".join(optimized.get("virality_signals", [])) or "none",
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Viral optimization skipped: %s", exc)
+
         title = script_data["title"]
         script_text = script_data["script"]
         caption_text = script_data["caption_script"]

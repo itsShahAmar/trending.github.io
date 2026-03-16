@@ -3,12 +3,34 @@
 import os
 
 # API Keys (loaded from GitHub Secrets / environment variables)
-# NOTE: No paid API keys required!  Script generation uses free templates
-# and TTS uses Microsoft's free edge-tts neural voices.
 YOUTUBE_CLIENT_SECRET_JSON: str | None = os.getenv("YOUTUBE_CLIENT_SECRET")  # JSON string of OAuth2 client secret
 YOUTUBE_TOKEN_JSON: str | None = os.getenv("YOUTUBE_TOKEN")  # JSON string of OAuth2 token
 PEXELS_API_KEY: str | None = os.getenv("PEXELS_API_KEY")  # For stock footage (free tier)
 NEWSAPI_KEY: str | None = os.getenv("NEWSAPI_KEY")  # NewsAPI.org key for trending headlines (optional)
+
+# ---------------------------------------------------------------------------
+# OpenRouter.ai — main AI script writing engine
+# ---------------------------------------------------------------------------
+OPENROUTER_API_KEY: str | None = os.getenv("OPENROUTER_API_KEY")  # OpenRouter.ai API key
+OPENROUTER_MODEL: str = os.getenv("OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
+OPENROUTER_FALLBACK_MODELS: list = [
+    "meta-llama/llama-3.1-8b-instruct:free",
+    "mistralai/mistral-7b-instruct:free",
+    "google/gemma-2-9b-it:free",
+    "qwen/qwen-2-7b-instruct:free",
+]
+OPENROUTER_TIMEOUT: int = 30  # seconds per API request
+OPENROUTER_ENABLED: bool = (
+    # Allow explicit opt-out via OPENROUTER_ENABLED=false even when key is set
+    os.getenv("OPENROUTER_ENABLED", "").lower() not in ("0", "false", "no")
+    and bool(os.getenv("OPENROUTER_API_KEY"))
+)
+
+# ---------------------------------------------------------------------------
+# Stock footage sources — multi-provider with smart fallback chain
+# ---------------------------------------------------------------------------
+PIXABAY_API_KEY: str | None = os.getenv("PIXABAY_API_KEY")  # Pixabay free video API
+STOCK_FOOTAGE_SOURCES: list = ["pexels", "pixabay"]  # ordered priority list
 
 # Video settings
 VIDEO_WIDTH: int = 1080
@@ -62,7 +84,6 @@ VIDEO_CLIP_RANDOM_START: bool = True   # random clip start for visual variety pe
 TTS_VOICE: str = "en-US-JennyNeural"  # fallback voice if rotation is disabled
 TTS_VOICE_ROTATE: bool = True          # True = pick a different voice each run
 TTS_RATE: str = "+0%"                  # natural pace
-TTS_LANGUAGE: str = "en"              # fallback for gTTS
 TTS_VOLUME_NORMALIZE: bool = True      # normalize loudness with pydub
 
 # Pexels fetch settings
@@ -74,3 +95,20 @@ PRIVACY_STATUS: str = "public"
 
 # Scheduling
 MAX_VIDEOS_PER_RUN: int = 1
+
+# ---------------------------------------------------------------------------
+# Viral Optimization Engine settings
+# ---------------------------------------------------------------------------
+VIRAL_OPTIMIZATION_ENABLED: bool = True   # Enable viral scoring and optimization
+VIRAL_MIN_SCORE: float = 0.6              # Minimum virality score to accept a topic (0–1)
+VIRAL_ENGAGEMENT_HOOKS: bool = True       # Insert engagement hooks at strategic points
+VIRAL_AB_TESTING: bool = True             # Generate A/B title variants
+
+# ---------------------------------------------------------------------------
+# Background music — free royalty-free sources
+# ---------------------------------------------------------------------------
+BG_MUSIC_ENABLED: bool = True             # Auto-fetch background music when no local file
+BG_MUSIC_SOURCES: list = [               # ordered fallback list for free music
+    "freemusicarchive",
+    "incompetech",
+]
