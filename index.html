@@ -4,171 +4,283 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>YT Automation — Free YouTube Shorts Automation</title>
-  <meta name="description" content="Fully automated YouTube Shorts creation and upload — 100% free, no paid APIs required.">
+  <meta name="description" content="Fully automated YouTube Shorts creation and upload — 100% free, no paid APIs required. Powered by OpenRouter AI, Edge TTS, Pexels, and GitHub Actions.">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    /* ── Reset & Variables ───────────────────────────────────────── */
     :root {
-      --bg: #09090b;
-      --surface: rgba(255,255,255,0.04);
-      --surface2: rgba(255,255,255,0.06);
-      --surface-hover: rgba(255,255,255,0.08);
+      --bg: #050507;
+      --bg-2: #0a0a0f;
+      --surface: rgba(255,255,255,0.032);
+      --surface2: rgba(255,255,255,0.055);
+      --surface3: rgba(255,255,255,0.08);
+      --surface-hover: rgba(255,255,255,0.07);
+      --glass: rgba(12,12,20,0.6);
+      --glass-border: rgba(255,255,255,0.08);
+      --glass-border-hover: rgba(255,255,255,0.18);
       --accent: #6366f1;
-      --accent-light: #818cf8;
-      --accent-glow: rgba(99,102,241,0.25);
-      --accent2: #06b6d4;
+      --accent2: #8b5cf6;
+      --accent3: #06b6d4;
+      --accent-light: #a5b4fc;
+      --accent-glow: rgba(99,102,241,0.35);
+      --cyan-glow: rgba(6,182,212,0.25);
+      --purple-glow: rgba(139,92,246,0.25);
       --green: #22c55e;
-      --green-bg: rgba(34,197,94,0.1);
-      --green-border: rgba(34,197,94,0.25);
+      --green-bg: rgba(34,197,94,0.08);
+      --green-border: rgba(34,197,94,0.2);
       --orange: #f59e0b;
-      --orange-bg: rgba(245,158,11,0.1);
-      --orange-border: rgba(245,158,11,0.25);
+      --orange-bg: rgba(245,158,11,0.08);
+      --orange-border: rgba(245,158,11,0.2);
       --red: #ef4444;
-      --text: #fafafa;
+      --text: #f4f4f8;
       --text-secondary: #a1a1aa;
-      --text-muted: #71717a;
-      --border: rgba(255,255,255,0.08);
-      --border-hover: rgba(255,255,255,0.15);
-      --input-bg: rgba(0,0,0,0.4);
-      --code-bg: rgba(0,0,0,0.5);
-      --gradient-1: linear-gradient(135deg, #6366f1, #8b5cf6, #06b6d4);
-      --gradient-2: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(6,182,212,0.08));
-      --radius: 16px;
-      --radius-sm: 10px;
-      --radius-xs: 6px;
+      --text-muted: #52525b;
+      --border: rgba(255,255,255,0.07);
+      --border-hover: rgba(255,255,255,0.14);
+      --input-bg: rgba(0,0,0,0.5);
+      --code-bg: rgba(0,0,0,0.6);
+      --grad-main: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #06b6d4 100%);
+      --grad-card: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(6,182,212,0.06));
+      --grad-text: linear-gradient(135deg, #a5b4fc, #818cf8, #67e8f9);
+      --radius: 20px;
+      --radius-sm: 12px;
+      --radius-xs: 8px;
+      --radius-pill: 50px;
+      --shadow-card: 0 8px 32px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.2);
+      --shadow-glow: 0 0 40px rgba(99,102,241,0.15);
+      --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+    *, *::before, *::after {
+      margin: 0; padding: 0; box-sizing: border-box;
+    }
+
+    html { scroll-behavior: smooth; }
 
     body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
       background: var(--bg);
       color: var(--text);
       line-height: 1.7;
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
-      -moz-osx-font-smoothing: grayscale;
+      overflow-x: hidden;
     }
 
-    /* Animated background mesh */
-    body::before {
-      content: '';
+    /* ── Animated Background ─────────────────────────────────────── */
+    .bg-canvas {
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
-      background:
-        radial-gradient(ellipse 80% 60% at 50% -20%, rgba(99,102,241,0.12), transparent),
-        radial-gradient(ellipse 60% 50% at 80% 50%, rgba(6,182,212,0.06), transparent),
-        radial-gradient(ellipse 50% 40% at 20% 80%, rgba(139,92,246,0.06), transparent);
-      pointer-events: none;
+      inset: 0;
       z-index: 0;
+      overflow: hidden;
+      pointer-events: none;
     }
 
+    .bg-canvas::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background:
+        radial-gradient(ellipse 90% 70% at 50% -10%, rgba(99,102,241,0.14) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 90% 40%, rgba(6,182,212,0.07) 0%, transparent 50%),
+        radial-gradient(ellipse 50% 60% at 10% 70%, rgba(139,92,246,0.08) 0%, transparent 50%),
+        radial-gradient(ellipse 40% 40% at 70% 90%, rgba(99,102,241,0.05) 0%, transparent 50%);
+    }
+
+    /* Floating orbs */
+    .orb {
+      position: absolute;
+      border-radius: 50%;
+      filter: blur(80px);
+      animation: orbFloat linear infinite;
+      opacity: 0;
+    }
+    .orb-1 {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(99,102,241,0.12), transparent 70%);
+      top: -200px; left: -150px;
+      animation-duration: 25s;
+      animation-delay: 0s;
+    }
+    .orb-2 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(6,182,212,0.1), transparent 70%);
+      top: 30%; right: -200px;
+      animation-duration: 30s;
+      animation-delay: -8s;
+    }
+    .orb-3 {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(139,92,246,0.1), transparent 70%);
+      bottom: 10%; left: 10%;
+      animation-duration: 20s;
+      animation-delay: -15s;
+    }
+    @keyframes orbFloat {
+      0%   { transform: translate(0, 0) scale(1); opacity: 0.4; }
+      25%  { transform: translate(30px, -40px) scale(1.05); opacity: 0.6; }
+      50%  { transform: translate(-20px, 30px) scale(0.95); opacity: 0.3; }
+      75%  { transform: translate(40px, 20px) scale(1.08); opacity: 0.5; }
+      100% { transform: translate(0, 0) scale(1); opacity: 0.4; }
+    }
+
+    /* Grid overlay */
+    .bg-grid {
+      position: absolute;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(255,255,255,0.018) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.018) 1px, transparent 1px);
+      background-size: 60px 60px;
+      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 80%);
+    }
+
+    /* ── Layout ───────────────────────────────────────────────────── */
     .container {
-      max-width: 860px;
+      max-width: 900px;
       margin: 0 auto;
       padding: 2rem 1.5rem;
       position: relative;
       z-index: 1;
     }
 
-    /* ── Navigation ───────────────────────────────────────────── */
+    /* ── Scroll Reveal ───────────────────────────────────────────── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(24px);
+      transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+    .reveal-delay-4 { transition-delay: 0.4s; }
+
+    /* ── Navigation ───────────────────────────────────────────────── */
     nav {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 1rem 0;
-      margin-bottom: 1rem;
+      padding: 1.25rem 0;
+      margin-bottom: 0.5rem;
     }
     .nav-brand {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.6rem;
+      font-family: 'Space Grotesk', sans-serif;
       font-weight: 700;
-      font-size: 1.15rem;
+      font-size: 1.1rem;
       color: var(--text);
       text-decoration: none;
+      letter-spacing: -0.01em;
     }
-    .nav-brand .logo-icon {
-      width: 32px;
-      height: 32px;
-      background: var(--gradient-1);
-      border-radius: 8px;
+    .nav-logo {
+      width: 36px; height: 36px;
+      background: var(--grad-main);
+      border-radius: 10px;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.9rem;
+      font-size: 1rem;
+      box-shadow: 0 4px 16px var(--accent-glow);
+      position: relative;
+      overflow: hidden;
+    }
+    .nav-logo::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 60%);
     }
     .nav-links {
       display: flex;
       align-items: center;
-      gap: 0.5rem;
+      gap: 0.25rem;
     }
     .nav-link {
-      padding: 0.45rem 0.9rem;
+      padding: 0.5rem 0.9rem;
       border-radius: var(--radius-xs);
       color: var(--text-secondary);
       text-decoration: none;
       font-size: 0.875rem;
       font-weight: 500;
-      transition: all 0.2s;
+      transition: var(--transition);
+      letter-spacing: 0.01em;
     }
     .nav-link:hover { color: var(--text); background: var(--surface2); }
-    .nav-link-primary {
-      background: var(--accent);
-      color: #fff !important;
+    .nav-link-cta {
+      background: rgba(99,102,241,0.12);
+      color: var(--accent-light) !important;
+      border: 1px solid rgba(99,102,241,0.25);
     }
-    .nav-link-primary:hover { background: var(--accent-light); }
+    .nav-link-cta:hover {
+      background: rgba(99,102,241,0.2) !important;
+      border-color: rgba(99,102,241,0.4);
+    }
 
-    /* ── Hero ──────────────────────────────────────────────────── */
+    /* ── Hero ─────────────────────────────────────────────────────── */
     .hero {
       text-align: center;
-      padding: 4rem 0 3.5rem;
+      padding: 5rem 0 4rem;
+      position: relative;
     }
     .hero-badge {
       display: inline-flex;
       align-items: center;
-      gap: 0.4rem;
-      padding: 0.35rem 1rem;
-      border-radius: 50px;
+      gap: 0.5rem;
+      padding: 0.4rem 1.1rem;
+      border-radius: var(--radius-pill);
       background: var(--green-bg);
       border: 1px solid var(--green-border);
       color: var(--green);
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 600;
-      margin-bottom: 1.5rem;
-      letter-spacing: 0.02em;
+      margin-bottom: 2rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
     }
-    .hero-badge .pulse {
-      width: 6px; height: 6px;
+    .pulse-dot {
+      width: 7px; height: 7px;
       background: var(--green);
       border-radius: 50%;
-      animation: pulse 2s infinite;
+      animation: pulseDot 2s ease-in-out infinite;
     }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; transform: scale(1); }
-      50% { opacity: 0.5; transform: scale(1.5); }
+    @keyframes pulseDot {
+      0%, 100% { transform: scale(1); opacity: 1; }
+      50%       { transform: scale(1.6); opacity: 0.5; }
     }
+
     .hero h1 {
-      font-size: clamp(2.2rem, 5vw, 3.5rem);
-      font-weight: 800;
-      line-height: 1.15;
-      margin-bottom: 1.25rem;
-      letter-spacing: -0.03em;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: clamp(2.4rem, 5.5vw, 4rem);
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      letter-spacing: -0.04em;
     }
     .hero h1 .gradient-text {
-      background: var(--gradient-1);
+      background: var(--grad-main);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      display: inline-block;
     }
+
     .hero-subtitle {
       color: var(--text-secondary);
-      font-size: 1.15rem;
-      max-width: 580px;
-      margin: 0 auto 2rem;
-      line-height: 1.7;
+      font-size: 1.1rem;
+      max-width: 560px;
+      margin: 0 auto 2.5rem;
+      line-height: 1.75;
+      font-weight: 400;
     }
+
     .hero-actions {
       display: flex;
       align-items: center;
@@ -177,165 +289,426 @@
       flex-wrap: wrap;
     }
 
-    /* ── Buttons ───────────────────────────────────────────────── */
+    /* Hero visual floating cards */
+    .hero-visual {
+      margin-top: 4rem;
+      position: relative;
+      height: 220px;
+      perspective: 1000px;
+    }
+    .hero-card-3d {
+      position: absolute;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(20px);
+      padding: 1.2rem 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      box-shadow: var(--shadow-card);
+      transition: transform 0.5s ease;
+      white-space: nowrap;
+    }
+    .hero-card-3d .card-icon {
+      font-size: 1.4rem;
+    }
+    .hero-card-3d .card-label {
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+    .hero-card-3d .card-val {
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      margin-top: 0.1rem;
+    }
+    .hc-1 {
+      left: 0; top: 20px;
+      transform: rotateY(12deg) rotateX(4deg) translateZ(10px);
+      animation: floatCard1 6s ease-in-out infinite;
+    }
+    .hc-2 {
+      left: 50%; top: 50px;
+      transform: translateX(-50%) rotateY(-4deg) rotateX(-2deg);
+      animation: floatCard2 8s ease-in-out infinite;
+    }
+    .hc-3 {
+      right: 0; top: 10px;
+      transform: rotateY(-14deg) rotateX(6deg) translateZ(15px);
+      animation: floatCard3 7s ease-in-out infinite;
+    }
+    @keyframes floatCard1 {
+      0%, 100% { transform: rotateY(12deg) rotateX(4deg) translateZ(10px) translateY(0px); }
+      50%       { transform: rotateY(8deg) rotateX(2deg) translateZ(10px) translateY(-12px); }
+    }
+    @keyframes floatCard2 {
+      0%, 100% { transform: translateX(-50%) rotateY(-4deg) rotateX(-2deg) translateY(0); }
+      50%       { transform: translateX(-50%) rotateY(2deg) rotateX(2deg) translateY(-16px); }
+    }
+    @keyframes floatCard3 {
+      0%, 100% { transform: rotateY(-14deg) rotateX(6deg) translateZ(15px) translateY(0); }
+      50%       { transform: rotateY(-10deg) rotateX(3deg) translateZ(15px) translateY(-10px); }
+    }
+
+    /* ── Buttons ───────────────────────────────────────────────────── */
     .btn {
       display: inline-flex;
       align-items: center;
       gap: 0.5rem;
-      padding: 0.7rem 1.4rem;
+      padding: 0.75rem 1.6rem;
       border: none;
       border-radius: var(--radius-sm);
       font-size: 0.9rem;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: var(--transition);
       text-decoration: none;
       font-family: inherit;
       line-height: 1.4;
+      letter-spacing: 0.01em;
+      position: relative;
+      overflow: hidden;
     }
-    .btn:hover { transform: translateY(-1px); }
+    .btn::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .btn:hover::after { opacity: 1; }
+    .btn:hover { transform: translateY(-2px); }
     .btn:active { transform: translateY(0); }
 
     .btn-primary {
-      background: var(--accent);
+      background: var(--grad-main);
       color: #fff;
-      box-shadow: 0 4px 16px var(--accent-glow);
+      box-shadow: 0 4px 20px var(--accent-glow), 0 1px 3px rgba(0,0,0,0.3);
     }
     .btn-primary:hover {
-      background: var(--accent-light);
-      box-shadow: 0 8px 24px var(--accent-glow);
+      box-shadow: 0 8px 32px var(--accent-glow), 0 2px 8px rgba(0,0,0,0.3);
     }
     .btn-primary:disabled {
-      background: #333;
+      background: rgba(255,255,255,0.08);
+      color: var(--text-muted);
       box-shadow: none;
       cursor: not-allowed;
       transform: none;
     }
-
     .btn-outline {
       background: transparent;
       color: var(--text-secondary);
       border: 1px solid var(--border);
+      backdrop-filter: blur(8px);
     }
     .btn-outline:hover {
       background: var(--surface2);
       color: var(--text);
       border-color: var(--border-hover);
     }
-
     .btn-ghost {
       background: transparent;
       color: var(--text-secondary);
     }
     .btn-ghost:hover { color: var(--text); background: var(--surface); }
 
-    /* ── Stats bar ─────────────────────────────────────────────── */
+    /* ── Stats bar ─────────────────────────────────────────────────── */
     .stats-bar {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
       gap: 1rem;
-      margin-bottom: 3rem;
+      margin-bottom: 4rem;
     }
     .stat-item {
       text-align: center;
-      padding: 1.5rem 1rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
+      padding: 1.75rem 1rem;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
       border-radius: var(--radius);
-      transition: all 0.3s;
+      backdrop-filter: blur(16px);
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+      cursor: default;
+    }
+    .stat-item::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(99,102,241,0.5), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
     }
     .stat-item:hover {
-      border-color: var(--border-hover);
-      background: var(--surface-hover);
-      transform: translateY(-2px);
+      border-color: rgba(99,102,241,0.2);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.3), 0 0 20px rgba(99,102,241,0.08);
     }
+    .stat-item:hover::before { opacity: 1; }
     .stat-value {
-      font-size: 1.6rem;
-      font-weight: 800;
-      background: var(--gradient-1);
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.8rem;
+      font-weight: 700;
+      background: var(--grad-main);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
+      letter-spacing: -0.03em;
     }
     .stat-label {
-      font-size: 0.8rem;
+      font-size: 0.75rem;
       color: var(--text-muted);
-      margin-top: 0.25rem;
+      margin-top: 0.3rem;
       font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
     }
 
-    /* ── Cards ──────────────────────────────────────────────────── */
+    /* ── Section headers ─────────────────────────────────────────── */
+    .section-header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+    .section-label {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--accent-light);
+      margin-bottom: 0.75rem;
+      opacity: 0.85;
+    }
+    .section-header h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.9rem;
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.2;
+    }
+    .section-header p {
+      color: var(--text-secondary);
+      margin-top: 0.65rem;
+      font-size: 0.95rem;
+    }
+    .section-divider {
+      width: 1px;
+      height: 60px;
+      background: linear-gradient(to bottom, transparent, rgba(99,102,241,0.4), transparent);
+      margin: 3rem auto;
+    }
+
+    /* ── 3D Cards ──────────────────────────────────────────────────── */
+    .card-3d-wrap {
+      perspective: 1200px;
+    }
     .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
       border-radius: var(--radius);
       padding: 2rem;
       margin-bottom: 1.25rem;
-      backdrop-filter: blur(12px);
-      transition: border-color 0.3s;
+      backdrop-filter: blur(20px);
+      box-shadow: var(--shadow-card);
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
     }
-    .card:hover { border-color: var(--border-hover); }
+    .card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: var(--grad-card);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .card:hover {
+      border-color: var(--glass-border-hover);
+      transform: translateY(-3px);
+      box-shadow: 0 16px 48px rgba(0,0,0,0.35), var(--shadow-glow);
+    }
+    .card:hover::before { opacity: 1; }
+    .card > * { position: relative; z-index: 1; }
+
     .card h2 {
-      font-size: 1.15rem;
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.1rem;
       font-weight: 700;
       margin-bottom: 0.75rem;
       display: flex;
       align-items: center;
-      gap: 0.6rem;
+      gap: 0.65rem;
+      letter-spacing: -0.01em;
     }
     .card h2 .step {
-      background: var(--gradient-1);
+      background: var(--grad-main);
       color: #fff;
-      width: 30px;
-      height: 30px;
-      border-radius: 8px;
+      width: 30px; height: 30px;
+      border-radius: 9px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.8rem;
+      font-size: 0.78rem;
       font-weight: 700;
       flex-shrink: 0;
+      box-shadow: 0 2px 8px var(--accent-glow);
     }
     .card-description {
       color: var(--text-secondary);
       font-size: 0.9rem;
       margin-bottom: 1.25rem;
+      line-height: 1.6;
     }
 
-    /* ── Section headers ───────────────────────────────────────── */
-    .section-header {
+    /* ── Pipeline 3D Grid ────────────────────────────────────────── */
+    .pipeline-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 1rem;
+    }
+    .pipeline-step {
+      padding: 1.75rem 1.25rem;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
       text-align: center;
-      margin-bottom: 2rem;
+      backdrop-filter: blur(16px);
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+      cursor: default;
     }
-    .section-header h2 {
-      font-size: 1.75rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
+    .pipeline-step::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--grad-main);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .pipeline-step::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99,102,241,0.06), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .pipeline-step:hover {
+      border-color: rgba(99,102,241,0.2);
+      transform: translateY(-5px) rotateX(3deg);
+      box-shadow: 0 16px 40px rgba(0,0,0,0.35), 0 0 24px rgba(99,102,241,0.1);
+    }
+    .pipeline-step:hover::before { opacity: 1; }
+    .pipeline-step:hover::after { opacity: 1; }
+    .pipeline-step > * { position: relative; z-index: 1; }
+    .pipeline-step .step-num {
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--text-muted);
+      margin-bottom: 0.75rem;
+    }
+    .pipeline-step .icon {
+      width: 52px; height: 52px;
+      margin: 0 auto 0.9rem;
+      background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(6,182,212,0.08));
+      border: 1px solid rgba(99,102,241,0.15);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
       justify-content: center;
+      font-size: 1.4rem;
+      transition: transform 0.3s;
     }
-    .section-header p {
-      color: var(--text-secondary);
-      margin-top: 0.5rem;
+    .pipeline-step:hover .icon { transform: scale(1.1) rotateY(15deg); }
+    .pipeline-step strong {
+      display: block;
+      font-size: 0.88rem;
+      font-weight: 700;
+      margin-bottom: 0.3rem;
+      letter-spacing: -0.01em;
     }
-    .section-divider {
-      width: 48px;
-      height: 3px;
-      background: var(--gradient-1);
-      border-radius: 2px;
-      margin: 3rem auto;
+    .pipeline-step .desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      line-height: 1.5;
     }
 
-    /* ── Forms ──────────────────────────────────────────────────── */
+    /* ── Features grid ───────────────────────────────────────────── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 1rem;
+    }
+    .feature-card {
+      padding: 1.75rem;
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      backdrop-filter: blur(16px);
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card::after {
+      content: '';
+      position: absolute;
+      bottom: 0; right: 0;
+      width: 80px; height: 80px;
+      background: radial-gradient(circle, rgba(99,102,241,0.1), transparent 70%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .feature-card:hover {
+      border-color: rgba(99,102,241,0.18);
+      transform: translateY(-4px) rotateX(2deg);
+      box-shadow: 0 14px 40px rgba(0,0,0,0.3), 0 0 20px rgba(99,102,241,0.08);
+    }
+    .feature-card:hover::after { opacity: 1; }
+    .feature-icon-wrap {
+      width: 48px; height: 48px;
+      background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1));
+      border: 1px solid rgba(99,102,241,0.15);
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.4rem;
+      margin-bottom: 1rem;
+      transition: transform 0.3s;
+    }
+    .feature-card:hover .feature-icon-wrap { transform: scale(1.1) rotateY(10deg); }
+    .feature-card h3 {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 0.4rem;
+      letter-spacing: -0.01em;
+    }
+    .feature-card p {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* ── Forms ───────────────────────────────────────────────────── */
     label {
       display: block;
-      font-size: 0.85rem;
+      font-size: 0.83rem;
       color: var(--text-secondary);
-      margin-bottom: 0.4rem;
+      margin-bottom: 0.45rem;
       font-weight: 500;
+      letter-spacing: 0.01em;
     }
-    input[type="text"], input[type="url"] {
+    input[type="text"], input[type="url"], input[type="password"] {
       width: 100%;
-      padding: 0.7rem 1rem;
+      padding: 0.75rem 1rem;
       border: 1px solid var(--border);
       border-radius: var(--radius-sm);
       background: var(--input-bg);
@@ -343,24 +716,25 @@
       font-size: 0.9rem;
       font-family: inherit;
       outline: none;
-      transition: all 0.2s;
+      transition: var(--transition);
+      backdrop-filter: blur(8px);
     }
     input:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px var(--accent-glow);
+      border-color: rgba(99,102,241,0.5);
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.12), 0 1px 4px rgba(0,0,0,0.2);
     }
     input::placeholder { color: var(--text-muted); }
     .input-group { margin-bottom: 1.25rem; }
     .input-hint {
-      font-size: 0.78rem;
+      font-size: 0.77rem;
       color: var(--text-muted);
       margin-top: 0.4rem;
-      line-height: 1.5;
+      line-height: 1.6;
     }
     .input-hint a { color: var(--accent-light); text-decoration: none; }
     .input-hint a:hover { text-decoration: underline; }
 
-    /* ── Status badges ─────────────────────────────────────────── */
+    /* ── Status badges ───────────────────────────────────────────── */
     .status-row {
       display: flex;
       flex-wrap: wrap;
@@ -371,11 +745,10 @@
       display: inline-flex;
       align-items: center;
       gap: 0.35rem;
-      padding: 0.3rem 0.75rem;
-      border-radius: 50px;
-      font-size: 0.8rem;
+      padding: 0.3rem 0.8rem;
+      border-radius: var(--radius-pill);
+      font-size: 0.78rem;
       font-weight: 500;
-      letter-spacing: 0.01em;
     }
     .status-pending {
       background: var(--orange-bg);
@@ -388,7 +761,7 @@
       border: 1px solid var(--green-border);
     }
 
-    /* ── Channel info ──────────────────────────────────────────── */
+    /* ── Channel info ────────────────────────────────────────────── */
     .channel-info {
       display: none;
       margin-top: 1rem;
@@ -415,11 +788,8 @@
       font-weight: 600;
     }
 
-    /* ── Token / code display ──────────────────────────────────── */
-    .token-area {
-      display: none;
-      margin-top: 1.25rem;
-    }
+    /* ── Token / code display ────────────────────────────────────── */
+    .token-area { display: none; margin-top: 1.25rem; }
     .token-area.visible { display: block; }
     .token-box {
       background: var(--code-bg);
@@ -428,13 +798,13 @@
       padding: 1rem 1.25rem;
       margin-bottom: 0.75rem;
       position: relative;
+      backdrop-filter: blur(8px);
     }
     .token-box label {
       font-weight: 600;
       color: var(--text);
       margin-bottom: 0.5rem;
       font-size: 0.82rem;
-      letter-spacing: 0.01em;
     }
     .token-box pre {
       font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
@@ -449,72 +819,71 @@
     }
     .copy-btn {
       position: absolute;
-      top: 0.75rem;
-      right: 0.75rem;
+      top: 0.75rem; right: 0.75rem;
       background: var(--surface2);
       border: 1px solid var(--border);
       color: var(--text-secondary);
       padding: 0.3rem 0.65rem;
       border-radius: var(--radius-xs);
       font-size: 0.72rem;
-      font-weight: 500;
+      font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s;
+      transition: var(--transition);
       font-family: inherit;
     }
-    .copy-btn:hover { background: var(--surface-hover); color: var(--text); }
+    .copy-btn:hover { background: var(--surface3); color: var(--text); }
 
-    /* ── Steps list ────────────────────────────────────────────── */
+    /* ── Steps list ──────────────────────────────────────────────── */
     .steps-list {
       list-style: none;
       counter-reset: steps;
     }
     .steps-list li {
-      padding: 0.75rem 0 0.75rem 2.25rem;
+      padding: 0.75rem 0 0.75rem 2.5rem;
       position: relative;
-      border-left: 2px solid var(--border);
-      margin-left: 0.6rem;
+      border-left: 1px solid var(--border);
+      margin-left: 0.75rem;
       font-size: 0.9rem;
-      line-height: 1.6;
+      line-height: 1.65;
+      color: var(--text-secondary);
     }
     .steps-list li::before {
       counter-increment: steps;
       content: counter(steps);
       position: absolute;
-      left: -0.85rem;
-      top: 0.75rem;
-      width: 26px;
-      height: 26px;
-      background: var(--bg);
-      border: 2px solid var(--border);
+      left: -0.9rem; top: 0.8rem;
+      width: 28px; height: 28px;
+      background: var(--bg-2);
+      border: 1px solid var(--border);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       font-weight: 700;
       color: var(--text-muted);
     }
     .steps-list li.done::before {
-      background: var(--green);
+      background: rgba(34,197,94,0.15);
       border-color: var(--green);
       content: "✓";
-      color: #fff;
+      color: var(--green);
     }
     .steps-list li a { color: var(--accent-light); text-decoration: none; }
     .steps-list li a:hover { text-decoration: underline; }
 
-    /* ── Code inline ───────────────────────────────────────────── */
+    /* ── Code inline ─────────────────────────────────────────────── */
     code {
-      background: var(--code-bg);
-      padding: 0.15rem 0.45rem;
-      border-radius: 4px;
-      font-size: 0.82em;
+      background: rgba(0,0,0,0.45);
+      padding: 0.18rem 0.48rem;
+      border-radius: 5px;
+      font-size: 0.8em;
       font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', monospace;
       border: 1px solid var(--border);
+      color: var(--accent-light);
     }
 
-    /* ── Notices ────────────────────────────────────────────────── */
+    /* ── Notices ──────────────────────────────────────────────────── */
     .notice {
       background: var(--orange-bg);
       border: 1px solid var(--orange-border);
@@ -529,92 +898,7 @@
       border-color: var(--green-border);
     }
 
-    /* ── Pipeline / how it works ───────────────────────────────── */
-    .pipeline-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1rem;
-    }
-    .pipeline-step {
-      padding: 1.5rem 1.25rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      text-align: center;
-      transition: all 0.3s;
-      position: relative;
-      overflow: hidden;
-    }
-    .pipeline-step::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 2px;
-      background: var(--gradient-1);
-      opacity: 0;
-      transition: opacity 0.3s;
-    }
-    .pipeline-step:hover {
-      border-color: var(--border-hover);
-      transform: translateY(-3px);
-    }
-    .pipeline-step:hover::before { opacity: 1; }
-    .pipeline-step .icon {
-      width: 44px;
-      height: 44px;
-      margin: 0 auto 0.75rem;
-      background: var(--gradient-2);
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.3rem;
-    }
-    .pipeline-step strong {
-      display: block;
-      font-size: 0.9rem;
-      margin-bottom: 0.25rem;
-    }
-    .pipeline-step .desc {
-      font-size: 0.78rem;
-      color: var(--text-muted);
-    }
-
-    /* ── Features grid ─────────────────────────────────────────── */
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(2, 1fr);
-      gap: 1rem;
-    }
-    .feature-card {
-      padding: 1.5rem;
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      transition: all 0.3s;
-    }
-    .feature-card:hover {
-      border-color: var(--border-hover);
-      transform: translateY(-2px);
-    }
-    .feature-card .feature-icon {
-      font-size: 1.5rem;
-      margin-bottom: 0.6rem;
-    }
-    .feature-card h3 {
-      font-size: 0.95rem;
-      font-weight: 700;
-      margin-bottom: 0.3rem;
-    }
-    .feature-card p {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      line-height: 1.5;
-    }
-
-    /* ── Cost comparison ───────────────────────────────────────── */
+    /* ── Cost table ───────────────────────────────────────────────── */
     .cost-table {
       width: 100%;
       border-collapse: collapse;
@@ -622,151 +906,208 @@
     }
     .cost-table th {
       text-align: left;
-      padding: 0.75rem 1rem;
+      padding: 0.7rem 1rem;
       border-bottom: 1px solid var(--border);
       color: var(--text-muted);
       font-weight: 600;
-      font-size: 0.78rem;
+      font-size: 0.72rem;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.08em;
     }
     .cost-table td {
-      padding: 0.7rem 1rem;
+      padding: 0.65rem 1rem;
       border-bottom: 1px solid var(--border);
       color: var(--text-secondary);
     }
-    .cost-table tr:last-child td {
-      border-bottom: none;
-      font-weight: 700;
-      color: var(--green);
-    }
-    .cost-table .free-badge {
+    .cost-table tr:last-child td { border-bottom: none; font-weight: 700; color: var(--green); }
+    .free-badge {
       display: inline-flex;
-      padding: 0.15rem 0.5rem;
-      border-radius: 50px;
+      padding: 0.15rem 0.55rem;
+      border-radius: var(--radius-pill);
       background: var(--green-bg);
       color: var(--green);
-      font-size: 0.72rem;
-      font-weight: 600;
+      font-size: 0.7rem;
+      font-weight: 700;
       border: 1px solid var(--green-border);
+      letter-spacing: 0.03em;
     }
 
-    /* ── Toast notification ────────────────────────────────────── */
+    /* ── Glow divider ─────────────────────────────────────────────── */
+    .glow-line {
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(99,102,241,0.4), rgba(6,182,212,0.3), transparent);
+      margin: 3.5rem 0;
+    }
+
+    /* ── Toast ────────────────────────────────────────────────────── */
     .toast {
       position: fixed;
       bottom: 2rem;
       left: 50%;
-      transform: translateX(-50%) translateY(100px);
-      background: var(--surface);
-      border: 1px solid var(--border);
+      transform: translateX(-50%) translateY(80px);
+      background: var(--glass);
+      border: 1px solid var(--glass-border);
       border-radius: var(--radius-sm);
-      padding: 0.75rem 1.25rem;
+      padding: 0.75rem 1.35rem;
       font-size: 0.85rem;
       color: var(--text);
       opacity: 0;
-      transition: all 0.4s ease;
+      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
       z-index: 100;
-      backdrop-filter: blur(12px);
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      backdrop-filter: blur(24px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 16px rgba(99,102,241,0.08);
+      pointer-events: none;
     }
     .toast.visible {
       transform: translateX(-50%) translateY(0);
       opacity: 1;
     }
 
-    /* ── Footer ────────────────────────────────────────────────── */
+    /* ── Footer ───────────────────────────────────────────────────── */
     footer {
       text-align: center;
-      padding: 3rem 0 2rem;
+      padding: 3rem 0 2.5rem;
       color: var(--text-muted);
       font-size: 0.8rem;
     }
-    footer a { color: var(--accent-light); text-decoration: none; }
-    footer a:hover { text-decoration: underline; }
+    footer a { color: var(--text-secondary); text-decoration: none; transition: color 0.2s; }
+    footer a:hover { color: var(--accent-light); }
     .footer-links {
       display: flex;
       justify-content: center;
-      gap: 1.5rem;
-      margin-bottom: 0.75rem;
+      gap: 1.75rem;
+      margin-bottom: 1rem;
+    }
+    .footer-brand {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+    .footer-brand span {
+      color: var(--accent-light);
     }
 
-    /* ── Utility ───────────────────────────────────────────────── */
+    /* ── Utility ──────────────────────────────────────────────────── */
     .hidden { display: none !important; }
 
-    /* ── Animations ────────────────────────────────────────────── */
-    .fade-in {
+    /* ── Animated gradient border effect ─────────────────────────── */
+    .glow-card {
+      position: relative;
+    }
+    .glow-card::after {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: calc(var(--radius) + 1px);
+      background: var(--grad-main);
+      z-index: -1;
       opacity: 0;
-      transform: translateY(16px);
-      animation: fadeIn 0.6s ease forwards;
+      transition: opacity 0.4s;
     }
-    @keyframes fadeIn {
-      to { opacity: 1; transform: translateY(0); }
-    }
-    .fade-in:nth-child(1) { animation-delay: 0s; }
-    .fade-in:nth-child(2) { animation-delay: 0.1s; }
-    .fade-in:nth-child(3) { animation-delay: 0.2s; }
-    .fade-in:nth-child(4) { animation-delay: 0.3s; }
-    .fade-in:nth-child(5) { animation-delay: 0.4s; }
-    .fade-in:nth-child(6) { animation-delay: 0.5s; }
+    .glow-card:hover::after { opacity: 0.25; }
 
-    /* ── Responsive ────────────────────────────────────────────── */
+    /* ── Scrollbar ───────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.35); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(99,102,241,0.55); }
+
+    /* ── Responsive ───────────────────────────────────────────────── */
     @media (max-width: 768px) {
       .container { padding: 1rem; }
-      .hero { padding: 2.5rem 0 2rem; }
-      .hero h1 { font-size: 1.9rem; }
+      .hero { padding: 3rem 0 2rem; }
+      .hero h1 { font-size: 2rem; }
+      .hero-visual { display: none; }
       .stats-bar { grid-template-columns: repeat(2, 1fr); }
       .pipeline-grid { grid-template-columns: 1fr; }
       .features-grid { grid-template-columns: 1fr; }
       .card { padding: 1.5rem; }
-      .nav-links .nav-link:not(.nav-link-primary) { display: none; }
+      .nav-links .nav-link:not(.nav-link-cta) { display: none; }
     }
     @media (max-width: 480px) {
-      .hero h1 { font-size: 1.5rem; }
-      .stats-bar { grid-template-columns: 1fr 1fr; gap: 0.5rem; }
-      .stat-item { padding: 1rem; }
-      .hero-actions { flex-direction: column; }
+      .hero h1 { font-size: 1.7rem; }
+      .stats-bar { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+      .stat-item { padding: 1.25rem 0.75rem; }
+      .stat-value { font-size: 1.5rem; }
+      .hero-actions { flex-direction: column; width: 100%; }
       .hero-actions .btn { width: 100%; justify-content: center; }
     }
+
+    /* ── 3D perspective for cards ─────────────────────────────────── */
+    [data-tilt] { transform-style: preserve-3d; }
   </style>
 </head>
 <body>
+
+  <!-- Animated background -->
+  <div class="bg-canvas">
+    <div class="bg-grid"></div>
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
   <div class="container">
 
     <!-- Navigation -->
-    <nav class="fade-in">
+    <nav class="reveal">
       <a href="#" class="nav-brand">
-        <span class="logo-icon">▶</span>
+        <div class="nav-logo">▶</div>
         YT Automation
       </a>
       <div class="nav-links">
         <a href="#how-it-works" class="nav-link">How It Works</a>
         <a href="#features" class="nav-link">Features</a>
         <a href="#setup" class="nav-link">Setup</a>
-        <a href="https://github.com/ShahAmar-Official/yt-automation.github.io" target="_blank" rel="noopener" class="nav-link nav-link-primary">★ GitHub</a>
+        <a href="https://github.com/itsShahAmar/trending.github.io" target="_blank" rel="noopener" class="nav-link nav-link-cta">★ Star on GitHub</a>
       </div>
     </nav>
 
     <!-- Hero -->
-    <header class="hero fade-in">
+    <header class="hero reveal reveal-delay-1">
       <div class="hero-badge">
-        <span class="pulse"></span>
-        100% Free — No Paid APIs
+        <span class="pulse-dot"></span>
+        100% Free · No Paid APIs · Zero Cost Per Video
       </div>
-      <h1>Automate Your<br><span class="gradient-text">YouTube Shorts</span></h1>
+      <h1>Automate Your<br><span class="gradient-text">YouTube Shorts</span><br>on Autopilot</h1>
       <p class="hero-subtitle">
-        Create and upload viral YouTube Shorts on autopilot — every 6 hours.
-        Powered entirely by free services. Zero cost per video.
+        A fully autonomous pipeline that finds trending topics, writes AI-powered scripts,
+        generates neural TTS voices, edits videos, and uploads to YouTube — every 6 hours, for <strong>$0.00</strong>.
       </p>
       <div class="hero-actions">
-        <a href="#setup" class="btn btn-primary">Get Started →</a>
-        <a href="#how-it-works" class="btn btn-outline">See How It Works</a>
+        <a href="#setup" class="btn btn-primary">🚀 Get Started Free</a>
+        <a href="https://github.com/itsShahAmar/trending.github.io" target="_blank" rel="noopener" class="btn btn-outline">View on GitHub →</a>
+      </div>
+
+      <!-- Floating 3D cards -->
+      <div class="hero-visual">
+        <div class="hero-card-3d hc-1">
+          <span class="card-icon">🔍</span>
+          <div>
+            <div class="card-label">Trend Detected</div>
+            <div class="card-val">Google Trends · US #1</div>
+          </div>
+        </div>
+        <div class="hero-card-3d hc-2">
+          <span class="card-icon">🤖</span>
+          <div>
+            <div class="card-label">AI Script Ready</div>
+            <div class="card-val">OpenRouter · Llama 3.1</div>
+          </div>
+        </div>
+        <div class="hero-card-3d hc-3">
+          <span class="card-icon">🚀</span>
+          <div>
+            <div class="card-label">Video Uploaded</div>
+            <div class="card-val">YouTube · 1080×1920</div>
+          </div>
+        </div>
       </div>
     </header>
 
-    <!-- Stats -->
-    <div class="stats-bar fade-in">
+    <!-- Stats bar -->
+    <div class="stats-bar reveal reveal-delay-2">
       <div class="stat-item">
-        <div class="stat-value">$0</div>
+        <div class="stat-value" data-target="0" data-prefix="$">$0</div>
         <div class="stat-label">Cost Per Video</div>
       </div>
       <div class="stat-item">
@@ -778,99 +1119,123 @@
         <div class="stat-label">Upload Frequency</div>
       </div>
       <div class="stat-item">
-        <div class="stat-value">0</div>
-        <div class="stat-label">Paid APIs Needed</div>
+        <div class="stat-value" data-target="4" data-suffix="+">4+</div>
+        <div class="stat-label">Topic Sources</div>
       </div>
     </div>
 
     <!-- How It Works -->
-    <div id="how-it-works" class="fade-in">
+    <div id="how-it-works" class="reveal">
       <div class="section-header">
+        <div class="section-label">Pipeline</div>
         <h2>⚡ How It Works</h2>
-        <p>Six automated steps — from trending topic to published Short</p>
+        <p>Seven automated steps — from trending topic to published Short</p>
       </div>
       <div class="pipeline-grid">
         <div class="pipeline-step">
+          <div class="step-num">Step 01</div>
           <div class="icon">🔍</div>
           <strong>Find Trends</strong>
-          <div class="desc">Google Trends &amp; Hacker News</div>
+          <div class="desc">Google Trends, YouTube Trends, NewsAPI &amp; viral niche pools</div>
         </div>
         <div class="pipeline-step">
-          <div class="icon">✍️</div>
-          <strong>Write Script</strong>
-          <div class="desc">Smart template engine</div>
+          <div class="step-num">Step 02</div>
+          <div class="icon">🤖</div>
+          <strong>AI Script</strong>
+          <div class="desc">OpenRouter AI (Llama 3.1 free) with template engine fallback</div>
         </div>
         <div class="pipeline-step">
+          <div class="step-num">Step 03</div>
+          <div class="icon">📈</div>
+          <strong>Viral Score</strong>
+          <div class="desc">Virality optimizer scores &amp; refines the topic for max reach</div>
+        </div>
+        <div class="pipeline-step">
+          <div class="step-num">Step 04</div>
           <div class="icon">🎙️</div>
-          <strong>Generate Voice</strong>
-          <div class="desc">Google TTS (free)</div>
+          <strong>Neural TTS</strong>
+          <div class="desc">Microsoft Edge neural voices (en-US-JennyNeural) with gTTS fallback</div>
         </div>
         <div class="pipeline-step">
+          <div class="step-num">Step 05</div>
           <div class="icon">🎬</div>
           <strong>Create Video</strong>
-          <div class="desc">Pexels footage + captions</div>
+          <div class="desc">Pexels &amp; Pixabay footage, animated captions, crossfade transitions</div>
         </div>
         <div class="pipeline-step">
+          <div class="step-num">Step 06</div>
           <div class="icon">🖼️</div>
-          <strong>Make Thumbnail</strong>
-          <div class="desc">Auto-generated with Pillow</div>
+          <strong>Thumbnail</strong>
+          <div class="desc">Gradient 1280×720 JPEG auto-generated with Pillow</div>
         </div>
         <div class="pipeline-step">
+          <div class="step-num">Step 07</div>
           <div class="icon">🚀</div>
           <strong>Upload</strong>
-          <div class="desc">Direct to YouTube</div>
+          <div class="desc">Resumable upload to YouTube with optimized metadata &amp; tags</div>
         </div>
       </div>
     </div>
 
-    <div class="section-divider"></div>
+    <div class="glow-line"></div>
 
     <!-- Features -->
-    <div id="features" class="fade-in">
+    <div id="features" class="reveal">
       <div class="section-header">
+        <div class="section-label">Capabilities</div>
         <h2>✨ Features</h2>
-        <p>Everything you need for hands-free content creation</p>
+        <p>Everything built in for zero-cost hands-free content creation</p>
       </div>
       <div class="features-grid">
         <div class="feature-card">
-          <div class="feature-icon">💸</div>
-          <h3>Completely Free</h3>
-          <p>No paid APIs. Uses Google TTS, template scripts, and free Pexels stock footage.</p>
+          <div class="feature-icon-wrap">💸</div>
+          <h3>100% Free</h3>
+          <p>No paid APIs ever. Uses OpenRouter free tier, Edge TTS, free Pexels &amp; Pixabay footage, and GitHub Actions free tier.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">🤖</div>
-          <h3>Fully Automated</h3>
-          <p>Runs on GitHub Actions every 6 hours. No server or manual intervention needed.</p>
+          <div class="feature-icon-wrap">🤖</div>
+          <h3>AI Script Generation</h3>
+          <p>OpenRouter AI (Llama 3.1, Mistral, Gemma — all free) writes professional hooks, narration &amp; CTAs. Falls back to a smart template engine.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">📈</div>
-          <h3>Trend-Powered</h3>
-          <p>Scores topics from Google Trends and Hacker News for maximum viral potential.</p>
+          <div class="feature-icon-wrap">📈</div>
+          <h3>Viral Optimizer</h3>
+          <p>Scores topics for virality potential, injects engagement hooks at strategic points, and generates A/B title variants automatically.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">📱</div>
+          <div class="feature-icon-wrap">📱</div>
           <h3>Shorts-Optimized</h3>
-          <p>Vertical 1080×1920 video with captions, hooks, and CTAs built in.</p>
+          <p>Vertical 1080×1920 video with TikTok-style animated word-burst captions, cinematic colour grade, and vignette overlay.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">🎨</div>
-          <h3>Custom Thumbnails</h3>
-          <p>Auto-generated gradient thumbnails with topic emojis and bold typography.</p>
+          <div class="feature-icon-wrap">🎙️</div>
+          <h3>Rotating Neural Voices</h3>
+          <p>Picks a different Microsoft Edge neural voice per run for variety. Volume-normalized with pydub. gTTS auto-fallback.</p>
         </div>
         <div class="feature-card">
-          <div class="feature-icon">🔄</div>
-          <h3>Smart Retry Logic</h3>
-          <p>Built-in retry with exponential backoff for every external API call.</p>
+          <div class="feature-icon-wrap">🔄</div>
+          <h3>Multi-Source Footage</h3>
+          <p>Queries Pexels first, then falls back to Pixabay for portrait clips. Random clip start points keep content visually fresh every run.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon-wrap">🎨</div>
+          <h3>Auto Thumbnails</h3>
+          <p>Eye-catching gradient 1280×720 JPEG thumbnails generated with Pillow — topic emoji, bold typography, no design tool needed.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon-wrap">⚙️</div>
+          <h3>Zero-Config Pipeline</h3>
+          <p>Runs every 6 hours via GitHub Actions cron. Just add three secrets and enable the workflow — no server required.</p>
         </div>
       </div>
     </div>
 
-    <div class="section-divider"></div>
+    <div class="glow-line"></div>
 
-    <!-- Cost comparison -->
-    <div class="card fade-in">
+    <!-- Cost breakdown -->
+    <div class="card glow-card reveal">
       <h2>💰 Cost Breakdown</h2>
-      <p class="card-description">Every component is free — no credit card required.</p>
+      <p class="card-description">Every component is genuinely free — no credit card, no trial, no catch.</p>
       <table class="cost-table">
         <thead>
           <tr>
@@ -881,13 +1246,18 @@
         </thead>
         <tbody>
           <tr>
-            <td>Template Engine</td>
-            <td>Script generation</td>
+            <td>OpenRouter AI (free models)</td>
+            <td>Script generation (AI)</td>
             <td><span class="free-badge">Free</span></td>
           </tr>
           <tr>
-            <td>Google TTS (gTTS)</td>
-            <td>Voice narration</td>
+            <td>Template Engine</td>
+            <td>Script fallback (no key)</td>
+            <td><span class="free-badge">Free</span></td>
+          </tr>
+          <tr>
+            <td>Microsoft Edge TTS</td>
+            <td>Neural voice narration</td>
             <td><span class="free-badge">Free</span></td>
           </tr>
           <tr>
@@ -896,18 +1266,23 @@
             <td><span class="free-badge">Free</span></td>
           </tr>
           <tr>
+            <td>Pixabay API</td>
+            <td>Footage fallback</td>
+            <td><span class="free-badge">Free</span></td>
+          </tr>
+          <tr>
             <td>Google Trends</td>
             <td>Trending topics</td>
             <td><span class="free-badge">Free</span></td>
           </tr>
           <tr>
-            <td>Hacker News</td>
+            <td>YouTube Trends RSS</td>
             <td>Trending topics</td>
             <td><span class="free-badge">Free</span></td>
           </tr>
           <tr>
             <td>GitHub Actions</td>
-            <td>Pipeline runner</td>
+            <td>Pipeline runner (6hr cron)</td>
             <td><span class="free-badge">Free</span></td>
           </tr>
           <tr>
@@ -919,17 +1294,18 @@
       </table>
     </div>
 
-    <div class="section-divider"></div>
+    <div class="glow-line"></div>
 
     <!-- Setup -->
-    <div id="setup" class="fade-in">
+    <div id="setup" class="reveal">
       <div class="section-header">
+        <div class="section-label">Setup Wizard</div>
         <h2>🛠️ Quick Setup</h2>
-        <p>Four steps to fully automated Shorts</p>
+        <p>Four steps to fully automated Shorts — takes under 10 minutes</p>
       </div>
 
       <!-- Step 1: Channel Link -->
-      <div class="card" id="step1-card">
+      <div class="card glow-card" id="step1-card">
         <h2><span class="step">1</span> Link Your YouTube Channel</h2>
         <p class="card-description">Paste your channel URL to validate and connect.</p>
         <div class="input-group">
@@ -941,13 +1317,13 @@
             autocomplete="off"
           >
           <p class="input-hint">
-            Accepts <code>youtube.com/channel/UC...</code>,
+            Accepts <code>youtube.com/channel/UC…</code>,
             <code>youtube.com/@handle</code>, or
             <code>youtube.com/c/ChannelName</code>
           </p>
         </div>
         <button class="btn btn-primary" id="validate-btn" onclick="validateChannel()">
-          Validate Channel
+          ✓ Validate Channel
         </button>
         <div class="channel-info" id="channel-info">
           <span class="check-circle">✓</span>
@@ -959,7 +1335,7 @@
       </div>
 
       <!-- Step 2: OAuth Authorization -->
-      <div class="card" id="step2-card">
+      <div class="card glow-card" id="step2-card">
         <h2><span class="step">2</span> Authorize YouTube Access</h2>
         <p class="card-description">Connect your Google account to allow uploads to your channel.</p>
 
@@ -994,7 +1370,7 @@
       </div>
 
       <!-- Step 3: Token Exchange -->
-      <div class="card" id="step3-card">
+      <div class="card glow-card" id="step3-card">
         <h2><span class="step">3</span> Exchange Tokens</h2>
         <p class="card-description">Exchange your authorization code for access &amp; refresh tokens — right in the browser.</p>
 
@@ -1008,7 +1384,8 @@
           >
           <p class="input-hint">
             Found in <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener">Google Cloud Console</a> →
-            OAuth 2.0 Client IDs → Edit → Client secret. <strong>Never shared — stays in your browser only.</strong>
+            OAuth 2.0 Client IDs → Edit → Client secret.
+            <strong>Never shared — stays in your browser only.</strong>
           </p>
         </div>
 
@@ -1032,7 +1409,7 @@
         </div>
 
         <details style="margin-top:1.25rem;">
-          <summary style="cursor:pointer; color:var(--text-secondary); font-size:0.9rem;">
+          <summary style="cursor:pointer; color:var(--text-secondary); font-size:0.9rem; user-select:none;">
             ⚙️ Manual exchange (alternative)
           </summary>
           <div style="margin-top:0.75rem;">
@@ -1071,7 +1448,7 @@ EOF</pre>
       </div>
 
       <!-- Step 4: Complete Setup -->
-      <div class="card" id="step4-card">
+      <div class="card glow-card" id="step4-card">
         <h2><span class="step">4</span> Configure &amp; Launch</h2>
         <p class="card-description">Add your secrets and enable the automation pipeline.</p>
 
@@ -1081,33 +1458,39 @@ EOF</pre>
             <a href="https://www.pexels.com/api/" target="_blank" rel="noopener">pexels.com/api</a>.
           </li>
           <li>
+            <strong>(Optional) Get an OpenRouter API key</strong> — Sign up for free at
+            <a href="https://openrouter.ai/keys" target="_blank" rel="noopener">openrouter.ai</a>
+            to enable AI script generation with Llama 3.1 and other free models.
+          </li>
+          <li>
             <strong>Add GitHub Secrets</strong> — In your fork go to
             <em>Settings → Secrets and variables → Actions</em> and add:
             <div class="token-box" style="margin-top:0.5rem">
               <pre>YOUTUBE_CLIENT_SECRET  → Full OAuth2 client secret JSON
 YOUTUBE_TOKEN          → JSON with access_token &amp; refresh_token (from Step 3)
-PEXELS_API_KEY         → Your free Pexels API key</pre>
+PEXELS_API_KEY         → Your free Pexels API key
+OPENROUTER_API_KEY     → (Optional) Free OpenRouter key for AI scripts</pre>
             </div>
           </li>
           <li>
             <strong>Enable GitHub Actions</strong> — Go to the <em>Actions</em> tab and enable workflows.
-            The pipeline runs every 6 hours automatically.
+            The pipeline runs every 6 hours automatically, or trigger it manually anytime.
           </li>
         </ol>
       </div>
     </div>
 
     <!-- Status Dashboard -->
-    <div class="card fade-in">
+    <div class="card glow-card reveal">
       <h2>📊 Setup Status</h2>
       <div class="status-row">
-        <span class="status" id="status-channel">
+        <span class="status status-pending" id="status-channel">
           <span id="status-channel-icon">⏳</span> Channel: <span id="status-channel-text">Not set</span>
         </span>
-        <span class="status" id="status-auth">
+        <span class="status status-pending" id="status-auth">
           <span id="status-auth-icon">⏳</span> Auth: <span id="status-auth-text">Pending</span>
         </span>
-        <span class="status" id="status-secrets">
+        <span class="status status-pending" id="status-secrets">
           <span id="status-secrets-icon">⏳</span> Secrets: <span id="status-secrets-text">Pending</span>
         </span>
       </div>
@@ -1132,11 +1515,15 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
     <!-- Footer -->
     <footer>
       <div class="footer-links">
-        <a href="https://github.com/ShahAmar-Official/yt-automation.github.io">GitHub</a>
-        <a href="https://github.com/ShahAmar-Official/yt-automation.github.io/issues">Issues</a>
-        <a href="https://github.com/ShahAmar-Official/yt-automation.github.io/blob/main/LICENSE">MIT License</a>
+        <a href="https://github.com/itsShahAmar/trending.github.io" target="_blank" rel="noopener">GitHub</a>
+        <a href="https://github.com/itsShahAmar/trending.github.io/issues" target="_blank" rel="noopener">Issues</a>
+        <a href="https://github.com/itsShahAmar/trending.github.io/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+        <a href="https://github.com/itsShahAmar/trending.github.io/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener">Contributing</a>
       </div>
-      <p>Built with ❤️ by <a href="https://github.com/ShahAmar-Official">ShahAmar</a> — 100% free and open source</p>
+      <p class="footer-brand">
+        Built with ❤️ by <a href="https://github.com/itsShahAmar" target="_blank" rel="noopener"><span>ShahAmar</span></a>
+        &nbsp;·&nbsp; 100% free &amp; open source &nbsp;·&nbsp; MIT License
+      </p>
     </footer>
 
   </div>
@@ -1145,12 +1532,55 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
   <div class="toast" id="toast"></div>
 
   <script>
-    // ── State ──────────────────────────────────────────────────────
+    // ── State ────────────────────────────────────────────────────
     const state = {
       channelId: null,
       authorized: false,
       authCode: null,
     };
+
+    // ── Scroll Reveal ─────────────────────────────────────────────
+    (function initReveal() {
+      if (!('IntersectionObserver' in window)) {
+        document.querySelectorAll('.reveal').forEach(function(el) {
+          el.classList.add('visible');
+        });
+        return;
+      }
+      const observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      }, { threshold: 0.08, rootMargin: '0px 0px -40px 0px' });
+
+      document.querySelectorAll('.reveal').forEach(function(el) {
+        observer.observe(el);
+      });
+    })();
+
+    // ── 3D Card Tilt Effect ────────────────────────────────────────
+    (function initTilt() {
+      document.querySelectorAll('.pipeline-step, .feature-card, .stat-item').forEach(function(card) {
+        var rafId = null;
+        card.addEventListener('mousemove', function(e) {
+          if (rafId) return;
+          rafId = requestAnimationFrame(function() {
+            rafId = null;
+            var rect = card.getBoundingClientRect();
+            var x = (e.clientX - rect.left) / rect.width  - 0.5;
+            var y = (e.clientY - rect.top)  / rect.height - 0.5;
+            card.style.transform = 'translateY(-5px) rotateX(' + (-y * 8) + 'deg) rotateY(' + (x * 8) + 'deg)';
+          });
+        });
+        card.addEventListener('mouseleave', function() {
+          if (rafId) { cancelAnimationFrame(rafId); rafId = null; }
+          card.style.transform = '';
+        });
+      });
+    })();
 
     // ── Restore state from localStorage ───────────────────────────
     (function restoreState() {
@@ -1182,7 +1612,7 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
       handleOAuthCallback();
     })();
 
-    // ── Channel validation ────────────────────────────────────────
+    // ── Channel validation ─────────────────────────────────────────
     function validateChannel() {
       const urlInput = document.getElementById('channel-url');
       const raw = urlInput.value.trim();
@@ -1240,7 +1670,7 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
       updateStatus('channel', 'done', id);
     }
 
-    // ── OAuth2 Authorization ──────────────────────────────────────
+    // ── OAuth2 Authorization ───────────────────────────────────────
     function startAuth() {
       const clientId = document.getElementById('client-id').value.trim();
 
@@ -1288,7 +1718,7 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
       }
     }
 
-    // ── Token Exchange ────────────────────────────────────────────
+    // ── Token Exchange ─────────────────────────────────────────────
     const TOKEN_URI = 'https://oauth2.googleapis.com/token';
 
     async function exchangeToken() {
@@ -1382,7 +1812,7 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
       } catch (_) { return {}; }
     }
 
-    // ── Status updates ────────────────────────────────────────────
+    // ── Status updates ─────────────────────────────────────────────
     function updateStatus(key, status, text) {
       const el = document.getElementById('status-' + key);
       const icon = document.getElementById('status-' + key + '-icon');
@@ -1391,9 +1821,18 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
       el.className = 'status ' + (status === 'done' ? 'status-done' : 'status-pending');
       icon.textContent = status === 'done' ? '✅' : '⏳';
       textEl.textContent = text;
+
+      // Check if all done
+      const allDone = ['channel', 'auth', 'secrets'].every(function(k) {
+        return document.getElementById('status-' + k).classList.contains('status-done');
+      });
+      if (allDone) {
+        document.getElementById('setup-notice').classList.add('hidden');
+        document.getElementById('all-done-notice').classList.remove('hidden');
+      }
     }
 
-    // ── Persistence ───────────────────────────────────────────────
+    // ── Persistence ────────────────────────────────────────────────
     function saveState(extra) {
       try {
         const current = JSON.parse(localStorage.getItem('ytAutoState') || '{}');
@@ -1402,7 +1841,7 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
       } catch (_) { /* ignore */ }
     }
 
-    // ── Clipboard ─────────────────────────────────────────────────
+    // ── Clipboard ──────────────────────────────────────────────────
     function copyText(elementId) {
       const el = document.getElementById(elementId);
       const text = el.textContent;
@@ -1431,7 +1870,7 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
       });
     }
 
-    // ── Toast notifications ───────────────────────────────────────
+    // ── Toast notifications ────────────────────────────────────────
     let toastTimeout;
     function showToast(msg) {
       const toast = document.getElementById('toast');
@@ -1443,7 +1882,7 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
       }, 3000);
     }
 
-    // ── Smooth scroll for anchor links ────────────────────────────
+    // ── Smooth scroll ──────────────────────────────────────────────
     document.querySelectorAll('a[href^="#"]').forEach(function(anchor) {
       anchor.addEventListener('click', function(e) {
         const href = this.getAttribute('href');
@@ -1455,23 +1894,6 @@ PEXELS_API_KEY         → Your free Pexels API key</pre>
         }
       });
     });
-
-    // ── Intersection observer for scroll animations ───────────────
-    if ('IntersectionObserver' in window) {
-      const observer = new IntersectionObserver(function(entries) {
-        entries.forEach(function(entry) {
-          if (entry.isIntersecting) {
-            entry.target.style.animationPlayState = 'running';
-            observer.unobserve(entry.target);
-          }
-        });
-      }, { threshold: 0.1 });
-
-      document.querySelectorAll('.fade-in').forEach(function(el) {
-        el.style.animationPlayState = 'paused';
-        observer.observe(el);
-      });
-    }
   </script>
 </body>
 </html>
