@@ -42,6 +42,8 @@ logger = logging.getLogger(__name__)
 
 _PEXELS_VIDEO_SEARCH = "https://api.pexels.com/videos/search"
 _PEXELS_IMAGE_SEARCH = "https://api.pexels.com/v1/search"
+_PIXABAY_VIDEO_SEARCH = "https://pixabay.com/api/videos/"
+_PIXABAY_IMAGE_SEARCH = "https://pixabay.com/api/"
 
 
 # ---------------------------------------------------------------------------
@@ -115,6 +117,216 @@ def _search_pexels_image(query: str) -> str | None:
     except Exception as exc:  # noqa: BLE001
         logger.warning("Pexels image search failed for '%s': %s", query, exc)
     return None
+
+
+# ---------------------------------------------------------------------------
+# Pixabay helpers
+# ---------------------------------------------------------------------------
+def _search_pixabay_video(query: str, per_page: int = 5) -> list[str]:
+    """Return a list of downloadable video URLs from Pixabay for *query*.
+
+    Uses the free Pixabay Videos API.  Requires ``PIXABAY_API_KEY`` to be set.
+    Returns an empty list gracefully when the key is absent.
+    """
+    api_key = getattr(config, "PIXABAY_API_KEY", None)
+    if not api_key:
+        return []
+    try:
+        resp = requests.get(
+            _PIXABAY_VIDEO_SEARCH,
+            params={
+                "key": api_key,
+                "q": query,
+                "per_page": per_page,
+                "video_type": "film",
+                "safesearch": "true",
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data: dict[str, Any] = resp.json()
+        urls: list[str] = []
+        for hit in data.get("hits", []):
+            videos = hit.get("videos", {})
+            # Prefer large > medium > small > tiny for best quality
+            for size_key in ("large", "medium", "small", "tiny"):
+                video_info = videos.get(size_key, {})
+                url = video_info.get("url", "")
+                if url:
+                    urls.append(url)
+                    break
+        logger.debug("Pixabay returned %d video URLs for '%s'", len(urls), query)
+        return urls
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Pixabay video search failed for '%s': %s", query, exc)
+        return []
+
+
+def _search_pixabay_image(query: str) -> str | None:
+    """Return the URL of a photo from Pixabay for *query*.
+
+    Uses the free Pixabay Images API.  Returns *None* when the key is absent.
+    """
+    api_key = getattr(config, "PIXABAY_API_KEY", None)
+    if not api_key:
+        return None
+    try:
+        resp = requests.get(
+            _PIXABAY_IMAGE_SEARCH,
+            params={
+                "key": api_key,
+                "q": query,
+                "per_page": 5,
+                "safesearch": "true",
+                "image_type": "photo",
+                "orientation": "vertical",
+            },
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data: dict[str, Any] = resp.json()
+        hits = data.get("hits", [])
+        if hits:
+            return hits[0].get("largeImageURL") or hits[0].get("webformatURL")
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Pixabay image search failed for '%s': %s", query, exc)
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Smart multi-source footage search
+# ---------------------------------------------------------------------------
+def _search_video(query: str) -> list[str]:
+    """Return video URLs for *query* by trying all configured footage sources.
+
+    Iterates through ``config.STOCK_FOOTAGE_SOURCES`` in order (default:
+    ``["pexels", "pixabay"]``) and combines results, deduplicating by URL.
+    Returns an empty list if all sources fail.
+    """
+    sources = getattr(config, "STOCK_FOOTAGE_SOURCES", ["pexels", "pixabay"])
+    all_urls: list[str] = []
+    seen: set[str] = set()
+    for source in sources:
+        try:
+            if source == "pexels":
+                urls = _search_pexels_video(query)
+            elif source == "pixabay":
+                urls = _search_pixabay_video(query)
+            else:
+                logger.debug("Unknown footage source '%s'; skipping", source)
+                urls = []
+            for url in urls:
+                if url not in seen:
+                    seen.add(url)
+                    all_urls.append(url)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Footage source '%s' failed for '%s': %s", source, query, exc)
+    logger.debug("Multi-source search returned %d video URLs for '%s'", len(all_urls), query)
+    return all_urls
+
+
+def _search_image(query: str) -> str | None:
+    """Return an image URL for *query* by trying all configured footage sources."""
+    sources = getattr(config, "STOCK_FOOTAGE_SOURCES", ["pexels", "pixabay"])
+    for source in sources:
+        try:
+            if source == "pexels":
+                url = _search_pexels_image(query)
+            elif source == "pixabay":
+                url = _search_pixabay_image(query)
+            else:
+                url = None
+            if url:
+                logger.debug("Image source '%s' returned result for '%s'", source, query)
+                return url
+        except Exception as exc:  # noqa: BLE001
+            logger.warning("Image source '%s' failed for '%s': %s", source, query, exc)
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Free background music helpers
+# ---------------------------------------------------------------------------
+def _fetch_free_music_archive_url(mood: str = "background") -> str | None:
+    """Attempt to fetch a royalty-free track URL from the Free Music Archive.
+
+    Returns a direct MP3 download URL or *None* on failure.
+    FMA provides a public, free-to-use JSON API for browsing tracks.
+    """
+    try:
+        resp = requests.get(
+            "https://freemusicarchive.org/api/get/tracks.json",
+            params={
+                "limit": 20,
+                "offset": 0,
+                "include": "license",
+            },
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        tracks = data.get("dataset", [])
+        # Pick a random track from available results
+        if tracks:
+            import random
+            track = random.choice(tracks)
+            url = track.get("track_url") or track.get("track_listen_url")
+            if url:
+                logger.info("Free Music Archive track found: %s", url)
+                return url
+    except Exception as exc:  # noqa: BLE001
+        logger.debug("Free Music Archive fetch failed: %s", exc)
+    return None
+
+
+def _fetch_incompetech_url(mood: str = "background") -> str | None:
+    """Return a royalty-free track URL from the Kevin MacLeod / Incompetech collection.
+
+    Incompetech tracks are CC-BY licensed. We use a curated list of known
+    reliable direct MP3 download URLs.  The track is selected deterministically
+    based on the current hour so that repeated runs vary without being random.
+    """
+    _INCOMPETECH_TRACKS = [
+        "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Cipher.mp3",
+        "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Chill.mp3",
+        "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Motivate.mp3",
+        "https://incompetech.com/music/royalty-free/mp3-royaltyfree/Epic%20Unease.mp3",
+    ]
+    import time
+    # Deterministic hourly rotation for reproducibility
+    idx = int(time.time() // 3600) % len(_INCOMPETECH_TRACKS)
+    return _INCOMPETECH_TRACKS[idx]
+
+
+def _get_background_music_url(mood: str = "background") -> str | None:
+    """Fetch a royalty-free background music URL from configured free sources.
+
+    Tries each source in ``config.BG_MUSIC_SOURCES`` in order.
+    Returns the first successful URL, or *None* if all sources fail.
+
+    Args:
+        mood: Optional mood hint (e.g. "upbeat", "dramatic") — used for future
+              genre-aware selection; currently passed through to source helpers.
+
+    Returns:
+        A direct downloadable audio URL, or *None*.
+    """
+    sources = getattr(config, "BG_MUSIC_SOURCES", ["freemusicarchive", "incompetech"])
+    for source in sources:
+        try:
+            if source == "freemusicarchive":
+                url = _fetch_free_music_archive_url(mood)
+            elif source == "incompetech":
+                url = _fetch_incompetech_url(mood)
+            else:
+                logger.debug("Unknown music source '%s'; skipping", source)
+                url = None
+            if url:
+                return url
+        except Exception as exc:  # noqa: BLE001
+            logger.debug("Music source '%s' failed: %s", source, exc)
+    return None
+
 
 def _download_file(url: str, suffix: str) -> Path:
     """Stream-download *url* to a named temp file and return its path."""
@@ -569,14 +781,14 @@ def create_video(
 
     try:
         # ------------------------------------------------------------------
-        # 1. Fetch stock footage for each scene
+        # 1. Fetch stock footage for each scene (multi-source: Pexels + Pixabay)
         # ------------------------------------------------------------------
         time_per_scene = target_duration / max(len(scenes), 1)
         for scene in scenes:
             clip_added = False
 
-            # Try video first
-            video_urls = _search_pexels_video(scene, per_page=5)
+            # Try video first using multi-source search
+            video_urls = _search_video(scene)
             for url in video_urls:
                 try:
                     clip_path = _download_file(url, ".mp4")
@@ -604,11 +816,11 @@ def create_video(
                     clip_added = True
                     break
                 except Exception as exc:  # noqa: BLE001
-                    logger.warning("Failed to load video from Pexels: %s", exc)
+                    logger.warning("Failed to load video clip: %s", exc)
 
             if not clip_added:
-                # Fallback: try a static image with Ken Burns effect
-                img_url = _search_pexels_image(scene)
+                # Fallback: try a static image (multi-source) with Ken Burns effect
+                img_url = _search_image(scene)
                 if img_url:
                     try:
                         img_path = _download_file(img_url, ".jpg")
@@ -620,7 +832,7 @@ def create_video(
                         video_clips.append(ic)
                         clip_added = True
                     except Exception as exc:  # noqa: BLE001
-                        logger.warning("Failed to load image from Pexels: %s", exc)
+                        logger.warning("Failed to load image: %s", exc)
 
             if not clip_added:
                 # Last resort: gradient placeholder instead of flat colour
@@ -653,8 +865,22 @@ def create_video(
         # ------------------------------------------------------------------
         tts_audio = AudioFileClip(str(audio_path))
 
-        # Look for a background music file at the configured path
+        # Resolve background music: local file → auto-fetch from free sources
         bg_music_path = Path(config.BG_MUSIC_PATH)
+        bg_fetched_path: Path | None = None
+
+        if not bg_music_path.exists() and getattr(config, "BG_MUSIC_ENABLED", False):
+            # Auto-fetch royalty-free background music
+            try:
+                music_url = _get_background_music_url()
+                if music_url:
+                    bg_fetched_path = _download_file(music_url, ".mp3")
+                    downloaded.append(bg_fetched_path)
+                    logger.info("Background music auto-fetched from free source")
+                    bg_music_path = bg_fetched_path
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Background music auto-fetch failed: %s", exc)
+
         if bg_music_path.exists() and config.BG_MUSIC_VOLUME > 0:
             try:
                 bg_audio = (

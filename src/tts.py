@@ -6,7 +6,7 @@ path together with the audio duration in seconds.  Completely free — no
 API keys required.
 
 Primary engine: edge-tts (Microsoft Edge neural voices — natural, high quality)
-Fallback engine: gTTS (Google's free TTS — works offline)
+Fallback: rotates through the full edge-tts voice pool until one succeeds.
 
 Quality features:
 - Text sanitisation to strip any markup before synthesis
@@ -83,6 +83,22 @@ def pick_voice() -> str:
         voice_entry["name"], voice_entry["gender"], voice_entry["style"],
     )
     return voice_entry["name"]
+
+
+def _get_fallback_voice_rotation(primary_voice: str) -> list[str]:
+    """Return an ordered list of fallback voices, excluding the primary voice.
+
+    When the primary voice fails, the pipeline tries each voice in this
+    rotation until one succeeds.  The list is shuffled deterministically
+    so different runs try different fallback voices for variety.
+    """
+    hour_index = int(time.time() // 3600)
+    candidates = [v["name"] for v in _VOICE_POOL if v["name"] != primary_voice]
+    # Deterministic shuffle based on current hour so fallback order varies
+    import random
+    rng = random.Random(hour_index + 1)
+    rng.shuffle(candidates)
+    return candidates
 
 
 def _clean_text_for_tts(text: str) -> str:
@@ -199,11 +215,10 @@ async def _generate_edge_tts(
 
 
 def generate_speech(script_text: str) -> tuple[Path, float, list[dict]]:
-    """Generate TTS audio for *script_text*.
+    """Generate TTS audio for *script_text* using Microsoft Edge neural TTS.
 
-    Tries Microsoft Edge's free neural TTS (edge-tts) first for natural,
-    high-quality audio.  Falls back to Google's gTTS if edge-tts is
-    unavailable or fails.
+    Tries the primary voice first, then rotates through the full Edge TTS
+    voice pool as fallbacks if the primary voice fails.  No gTTS dependency.
 
     Args:
         script_text: The narration text to convert to speech.
@@ -212,11 +227,10 @@ def generate_speech(script_text: str) -> tuple[Path, float, list[dict]]:
         A tuple of ``(audio_path, duration_seconds, word_timestamps)`` where
         *audio_path* is a :class:`pathlib.Path` pointing to the generated MP3
         file and *word_timestamps* is a list of
-        ``{"word": str, "start": float, "end": float}`` dicts (times in
-        seconds).  For the gTTS fallback, *word_timestamps* is an empty list.
+        ``{"word": str, "start": float, "end": float}`` dicts (times in seconds).
 
     Raises:
-        RuntimeError: If all TTS engines fail.
+        RuntimeError: If all Edge TTS voices fail.
     """
     # Write to a named temp file so it persists after the call
     tmp_file = tempfile.NamedTemporaryFile(suffix=".mp3", delete=False)
@@ -230,48 +244,48 @@ def generate_speech(script_text: str) -> tuple[Path, float, list[dict]]:
     logger.debug("Cleaned TTS text (%d chars): %s…", len(clean_text), clean_text[:80])
 
     word_timestamps: list[dict] = []
+    last_exc: Exception | None = None
 
-    # --- Primary: edge-tts (free Microsoft neural voice) ---
     try:
-        import edge_tts  # type: ignore[import]  # noqa: F401 — check availability before asyncio.run
+        import edge_tts  # type: ignore[import]  # noqa: F401 — check availability
+    except ImportError as exc:
+        audio_path.unlink(missing_ok=True)
+        raise RuntimeError(
+            "edge-tts is not installed — run: pip install edge-tts"
+        ) from exc
 
-        voice = pick_voice()
-        word_timestamps = asyncio.run(
-            _generate_edge_tts(
-                clean_text,
-                str(audio_path),
-                voice,
-                config.TTS_RATE,
-            )
-        )
-        logger.info("TTS generated via edge-tts (voice: %s, %d word timestamps)",
-                    voice, len(word_timestamps))
-    except Exception as edge_exc:  # noqa: BLE001
-        logger.warning("edge-tts failed (%s); falling back to gTTS", edge_exc)
+    primary_voice = pick_voice()
+    voices_to_try = [primary_voice] + _get_fallback_voice_rotation(primary_voice)
 
-        # --- Fallback: gTTS ---
+    for voice in voices_to_try:
         try:
-            from gtts import gTTS  # type: ignore[import]
-        except ImportError as exc:
-            audio_path.unlink(missing_ok=True)
-            raise RuntimeError(
-                "Neither edge-tts nor gTTS is installed — "
-                "run: pip install edge-tts gTTS"
-            ) from exc
-
-        try:
-            tts = gTTS(
-                text=clean_text,
-                lang=config.TTS_LANGUAGE,
-                slow=False,
+            word_timestamps = asyncio.run(
+                _generate_edge_tts(
+                    clean_text,
+                    str(audio_path),
+                    voice,
+                    config.TTS_RATE,
+                )
             )
-            tts.save(str(audio_path))
-            logger.info("TTS generated via gTTS (lang: %s)", config.TTS_LANGUAGE)
-        except Exception as gtts_exc:
-            audio_path.unlink(missing_ok=True)
-            raise RuntimeError(
-                f"Both TTS engines failed — edge-tts: {edge_exc}; gTTS: {gtts_exc}"
-            ) from gtts_exc
+            logger.info(
+                "TTS generated via edge-tts (voice: %s, %d word timestamps)",
+                voice, len(word_timestamps),
+            )
+            break  # Success — stop trying fallbacks
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            logger.warning("edge-tts voice '%s' failed (%s); trying next voice…", voice, exc)
+            # Clear partial output before retrying; log if this cleanup also fails
+            try:
+                audio_path.write_bytes(b"")
+            except Exception as cleanup_exc:  # noqa: BLE001
+                logger.debug("Could not clear partial audio file '%s': %s", audio_path, cleanup_exc)
+    else:
+        # All voices exhausted
+        audio_path.unlink(missing_ok=True)
+        raise RuntimeError(
+            f"All Edge TTS voices failed — last error: {last_exc}"
+        ) from last_exc
 
     # Normalize audio loudness for a consistent, clear output level
     if getattr(config, "TTS_VOLUME_NORMALIZE", True):

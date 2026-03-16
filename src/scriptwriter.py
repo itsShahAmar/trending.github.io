@@ -1,9 +1,13 @@
 """
-scriptwriter.py — Template-based YouTube Shorts script generator.
+scriptwriter.py — YouTube Shorts script generator.
 
-Uses deterministic templates with topic-aware variations to produce structured
-scripts complete with title, narration, scene descriptions, tags, and a
-YouTube description — no paid API keys required.
+Primary engine: OpenRouter.ai (when OPENROUTER_API_KEY is configured) with
+automatic fallback to deterministic templates when the API is unavailable
+or the key is not set.
+
+The template engine uses topic-aware variations to produce structured scripts
+complete with title, narration, scene descriptions, tags, and a YouTube
+description — no paid API keys required for template mode.
 """
 
 import hashlib
@@ -12,6 +16,8 @@ import random
 import re
 import time
 from typing import TypedDict
+
+import config
 
 logger = logging.getLogger(__name__)
 
@@ -433,14 +439,126 @@ def _titlecase_topic(topic: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# OpenRouter.ai script generation
+# ---------------------------------------------------------------------------
+
+_OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+_OPENROUTER_SYSTEM_PROMPT = (
+    "You are an expert YouTube Shorts scriptwriter specialising in viral, "
+    "high-retention 60-second news and commentary shorts. Write in a punchy, "
+    "direct, authoritative style. Always output plain text — never use SSML, "
+    "HTML, Markdown, or any other markup tags."
+)
+
+_OPENROUTER_USER_TEMPLATE = (
+    "Write a 60-second YouTube Shorts script about: {topic}\n\n"
+    "Structure:\n"
+    "1. HOOK (5 seconds): A single compelling opening sentence that grabs attention.\n"
+    "2. BODY (45 seconds): 3–4 sentences of insight, analysis, or key facts.\n"
+    "3. CTA (10 seconds): A single sentence encouraging likes, comments, and subscriptions.\n\n"
+    "Requirements:\n"
+    "- Total narration: 80–150 words.\n"
+    "- Plain text only — no SSML, no HTML, no markup.\n"
+    "- Output ONLY the narration text with no section labels or formatting.\n"
+    "- Keep it conversational, engaging, and high-energy."
+)
+
+
+def _call_openrouter(topic: str, model: str) -> str | None:
+    """Call the OpenRouter.ai chat completion API to generate a script.
+
+    Args:
+        topic: The trending topic for the script.
+        model: The OpenRouter model identifier to use.
+
+    Returns:
+        The raw narration text string, or *None* on failure.
+    """
+    import requests  # type: ignore[import]
+
+    api_key = getattr(config, "OPENROUTER_API_KEY", None)
+    if not api_key:
+        return None
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/itsShahAmar/trending.github.io",
+        "X-Title": "YouTube Shorts Automation",
+    }
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": _OPENROUTER_SYSTEM_PROMPT},
+            {"role": "user", "content": _OPENROUTER_USER_TEMPLATE.format(topic=topic)},
+        ],
+        "max_tokens": 400,
+        "temperature": 0.8,
+    }
+
+    timeout = getattr(config, "OPENROUTER_TIMEOUT", 30)
+    try:
+        resp = requests.post(_OPENROUTER_URL, headers=headers, json=payload, timeout=timeout)
+        resp.raise_for_status()
+        data = resp.json()
+        choices = data.get("choices", [])
+        if choices:
+            text = choices[0].get("message", {}).get("content", "").strip()
+            if text:
+                logger.info("OpenRouter script generated via model '%s' (%d chars)", model, len(text))
+                return text
+        logger.warning("OpenRouter returned empty content for model '%s'", model)
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("OpenRouter call failed (model=%s): %s", model, exc)
+    return None
+
+
+def _generate_script_via_openrouter(topic: str) -> str | None:
+    """Try OpenRouter.ai models in priority order to generate a narration script.
+
+    Tries the primary model first, then iterates through fallback models until
+    one succeeds or all are exhausted.
+
+    Args:
+        topic: The trending topic string.
+
+    Returns:
+        The narration text string, or *None* if all models fail / key absent.
+    """
+    if not getattr(config, "OPENROUTER_ENABLED", False):
+        return None
+    if not getattr(config, "OPENROUTER_API_KEY", None):
+        return None
+
+    primary_model = getattr(config, "OPENROUTER_MODEL", "meta-llama/llama-3.1-8b-instruct:free")
+    fallback_models = getattr(config, "OPENROUTER_FALLBACK_MODELS", [])
+
+    models_to_try: list[str] = [primary_model] + [
+        m for m in fallback_models if m != primary_model
+    ]
+
+    for model in models_to_try:
+        result = _call_openrouter(topic, model)
+        if result:
+            return result
+
+    logger.warning("All OpenRouter models failed; falling back to template engine")
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
 
 def generate_script(topic: str) -> ScriptData:
     """Generate a structured YouTube Shorts script for *topic*.
 
-    Uses templates with time-seeded randomisation so each pipeline run
-    produces a different script, even for the same topic.
+    Primary path: OpenRouter.ai (when ``OPENROUTER_API_KEY`` is configured).
+    Fallback path: template engine with time-seeded randomisation.
+
+    Both paths produce the same :class:`ScriptData` structure so the rest of
+    the pipeline is unaffected by which engine is used.
 
     Args:
         topic: The trending topic string to write about.
@@ -459,19 +577,38 @@ def generate_script(topic: str) -> ScriptData:
 
     display_topic = _titlecase_topic(topic)
 
-    # Select templates — include category-specific hooks when the topic matches
-    category = _detect_category(topic)
-    hook_pool = _HOOKS + (_CATEGORY_HOOKS.get(category, []) if category else [])
-    hook = rng.choice(hook_pool).format(topic=display_topic)
-    body = rng.choice(_BODIES).format(topic=display_topic)
-    cta = rng.choice(_CTAS).format(topic=display_topic)
+    # ------------------------------------------------------------------
+    # Try OpenRouter.ai first; fall back to templates on failure
+    # ------------------------------------------------------------------
+    ai_script: str | None = _generate_script_via_openrouter(topic)
+
+    if ai_script:
+        # Sanitise AI output — remove any stray markup
+        ai_script = re.sub(r"<[^>]+>", " ", ai_script)
+        ai_script = re.sub(r"\s+", " ", ai_script).strip()
+        script_text = ai_script
+        # Use the first sentence as the hook
+        sentences = re.split(r"(?<=[.!?])\s+", script_text)
+        hook = sentences[0] if sentences else script_text
+        # Caption text is the full script (AI path doesn't split hook from body)
+        caption_text = script_text
+        logger.info("Script engine: OpenRouter.ai")
+    else:
+        # ------------------------------------------------------------------
+        # Template fallback
+        # ------------------------------------------------------------------
+        category = _detect_category(topic)
+        hook_pool = _HOOKS + (_CATEGORY_HOOKS.get(category, []) if category else [])
+        hook = rng.choice(hook_pool).format(topic=display_topic)
+        body = rng.choice(_BODIES).format(topic=display_topic)
+        cta = rng.choice(_CTAS).format(topic=display_topic)
+        script_text = f"{hook} {body} {cta}"
+        # Caption script excludes the hook to avoid duplicating the title on-screen
+        caption_text = f"{body} {cta}"
+        logger.info("Script engine: template (OpenRouter unavailable)")
+
+    # Shared scene selection (always deterministic)
     scenes = list(rng.choice(_SCENE_SETS))
-
-    # Build the full script (hook + body + cta for TTS audio)
-    script_text = f"{hook} {body} {cta}"
-
-    # Caption script excludes the hook to avoid duplicating the title on-screen
-    caption_text = f"{body} {cta}"
 
     # Build title
     title = rng.choice(_TITLE_TEMPLATES).format(Topic=display_topic)
