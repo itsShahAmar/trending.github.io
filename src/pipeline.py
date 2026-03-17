@@ -54,7 +54,7 @@ def run_pipeline() -> None:
         # ------------------------------------------------------------------
         # Step 0: Validate YouTube credentials (fail fast before heavy work)
         # ------------------------------------------------------------------
-        logger.info("[0/5] Validating YouTube credentials…")
+        logger.info("[0/6] Validating YouTube credentials…")
         from src.uploader import validate_credentials  # noqa: PLC0415
 
         validate_credentials()
@@ -63,7 +63,7 @@ def run_pipeline() -> None:
         # ------------------------------------------------------------------
         # Step 1: Find best trending topic
         # ------------------------------------------------------------------
-        logger.info("[1/5] Fetching trending topics…")
+        logger.info("[1/6] Fetching trending topics…")
         from src.trending import get_best_topic  # noqa: PLC0415
 
         topic = get_best_topic()
@@ -72,7 +72,7 @@ def run_pipeline() -> None:
         # ------------------------------------------------------------------
         # Step 2: Generate AI script
         # ------------------------------------------------------------------
-        logger.info("[2/5] Generating script for topic: '%s'…", topic)
+        logger.info("[2/6] Generating script for topic: '%s'…", topic)
         from src.scriptwriter import generate_script  # noqa: PLC0415
 
         script_data = generate_script(topic)
@@ -107,29 +107,50 @@ def run_pipeline() -> None:
         # ------------------------------------------------------------------
         # Step 3: Text-to-speech
         # ------------------------------------------------------------------
-        logger.info("[3/5] Generating TTS audio…")
+        logger.info("[3/6] Generating TTS audio…")
         from src.tts import generate_speech  # noqa: PLC0415
 
         audio_path, audio_duration, word_timestamps = generate_speech(script_text)
         logger.info("      Audio duration: %.2f s", audio_duration)
 
         # ------------------------------------------------------------------
+        # Step 3.5: Background music selection
+        # ------------------------------------------------------------------
+        logger.info("[3.5/6] 🎵 Music — selecting scene-aware background music…")
+        music_path = None
+        if getattr(config, "BG_MUSIC_ENABLED", False):
+            try:
+                from src.music_selector import select_background_music  # noqa: PLC0415
+
+                music_path = select_background_music(
+                    scenes=scenes,
+                    topic=topic,
+                    duration=int(audio_duration) + 5,
+                )
+                logger.info("      Background music: '%s'", music_path)
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Music selection failed, continuing without music: %s", exc)
+
+        # ------------------------------------------------------------------
         # Step 4: Create video
         # ------------------------------------------------------------------
-        logger.info("[4/5] Creating video…")
+        logger.info("[4/6] 🎬 Assembling — creating video with stock footage…")
         from src.video_creator import create_video  # noqa: PLC0415
 
         # Pass full script text so every spoken word gets a caption.
         # A single subtitle band in the lower third covers hook + body + CTA —
         # no duplicate top subtitle.
-        video_path = create_video(audio_path, script_text, scenes, audio_duration,
-                                  hook_text=hook_text, word_timestamps=word_timestamps)
+        video_path = create_video(
+            audio_path, script_text, scenes, audio_duration,
+            hook_text=hook_text, word_timestamps=word_timestamps,
+            music_path=music_path,
+        )
         logger.info("      Video path: '%s'", video_path)
 
         # ------------------------------------------------------------------
         # Step 5: Upload to YouTube
         # ------------------------------------------------------------------
-        logger.info("[5/5] Uploading to YouTube…")
+        logger.info("[5/6] Uploading to YouTube…")
         from src.uploader import upload_video  # noqa: PLC0415
 
         video_id, video_url = upload_video(

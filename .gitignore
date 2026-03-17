@@ -14,6 +14,9 @@ venv/
 # Output artifacts
 output/
 
+# Music cache — downloaded royalty-free tracks; not committed to version control
+cache/
+
 # OS files
 .DS_Store
 Thumbs.db
