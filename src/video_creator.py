@@ -738,6 +738,7 @@ def create_video(
     audio_duration: float,
     hook_text: str = "",
     word_timestamps: list[dict] | None = None,
+    music_path: Path | None = None,
 ) -> Path:
     """Create a vertical 1080 × 1920 YouTube Shorts MP4 video.
 
@@ -753,6 +754,9 @@ def create_video(
                           internally now that the full script is captioned.
         word_timestamps:  Optional list of ``{"word", "start", "end"}`` dicts
                           from the TTS engine for perfect caption sync.
+        music_path:       Optional pre-fetched background music file (MP3 or
+                          WAV).  When provided, the internal music-fetch logic
+                          is bypassed and this file is used directly.
 
     Returns:
         Path to the exported MP4 file.
@@ -865,12 +869,19 @@ def create_video(
         # ------------------------------------------------------------------
         tts_audio = AudioFileClip(str(audio_path))
 
-        # Resolve background music: local file → auto-fetch from free sources
-        bg_music_path = Path(config.BG_MUSIC_PATH)
+        # Resolve background music:
+        #   1. Use pre-fetched music_path if provided by the caller (pipeline).
+        #   2. Fall back to the local static file (config.BG_MUSIC_PATH).
+        #   3. Auto-fetch from free sources if BG_MUSIC_ENABLED is set.
+        if music_path is not None and music_path.exists():
+            bg_music_path = music_path
+        else:
+            bg_music_path = Path(config.BG_MUSIC_PATH)
+
         bg_fetched_path: Path | None = None
 
         if not bg_music_path.exists() and getattr(config, "BG_MUSIC_ENABLED", False):
-            # Auto-fetch royalty-free background music
+            # Auto-fetch royalty-free background music (legacy fallback)
             try:
                 music_url = _get_background_music_url()
                 if music_url:
